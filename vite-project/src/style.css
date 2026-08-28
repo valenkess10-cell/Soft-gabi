@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+@theme {
+  --color-sb-red: #DA291C;
+  --color-sb-red-dark: #B81D13;
+  --color-sb-yellow: #FFBC0D;
+  --color-sb-yellow-hover: #E5A800;
+  --color-sb-bg: #F4F5F7;
+  --color-sb-card: #FFFFFF;
+  --color-sb-text: #18181B;
+  --color-sb-muted: #71717A;
+}
+
+body {
+  background-color: var(--color-sb-bg);
+  color: var(--color-sb-text);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 0;
+}
