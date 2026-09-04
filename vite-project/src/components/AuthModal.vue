@@ -13,6 +13,10 @@ const email = ref('')
 const password = ref('')
 const mensajeError = ref('')
 
+// Email reservado para la cuenta de la vendedora.
+// Quien se registre o inicie sesión con este correo obtiene acceso al Panel de Ventas.
+const EMAIL_VENDEDORA = 'vendedora@micantina.com'
+
 const handleSubmit = () => {
   mensajeError.value = ''
 
@@ -40,7 +44,8 @@ const handleSubmit = () => {
       return
     }
 
-    const nuevoUsuario = { nombre: nombre.value, email: email.value, password: password.value }
+    const rol = email.value.trim().toLowerCase() === EMAIL_VENDEDORA ? 'vendedora' : 'cliente'
+    const nuevoUsuario = { nombre: nombre.value, email: email.value, password: password.value, rol }
     usuariosGuardados.push(nuevoUsuario)
     localStorage.setItem('schoolbite_users_db', JSON.stringify(usuariosGuardados))
     localStorage.setItem('schoolbite_user', JSON.stringify(nuevoUsuario))

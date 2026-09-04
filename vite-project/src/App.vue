@@ -1,78 +1,178 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+
 import Navbar from './components/Navbar.vue'
 import HeroBanner from './components/HeroBanner.vue'
 import Categorias from './components/Categorias.vue'
 import ProductoCard from './components/ProductoCard.vue'
-import NutricionSection from './components/NutricionSection.vue'
 import CarritoModal from './components/CarritoModal.vue'
-import TicketModal from './components/TicketModal.vue'
 import AuthModal from './components/AuthModal.vue'
 import PasarelaPagoModal from './components/PasarelaPagoModal.vue'
+import TicketModal from './components/TicketModal.vue'
+import NutricionSection from './components/NutricionSection.vue'
+import VentasSection from './components/VentasSection.vue'
 
+// ============ ESTADOS GENERALES ============
 const seccionActiva = ref('inicio')
+const categoriaActiva = ref('todos')
 
-const categorias = ref([
-  { id: 0, nombre: 'Todos', icon: '✨' },
-  { id: 6, nombre: 'Frutas', icon: '🍎' },
-  { id: 1, nombre: 'Sándwiches', icon: '🥪' },
-  { id: 2, nombre: 'Empanadas', icon: '🥟' },
-  { id: 3, nombre: 'Bebidas', icon: '🥤' },
-  { id: 4, nombre: 'Snacks/Papas', icon: '🍟' },
-  { id: 5, nombre: 'Postres', icon: '🍦' }
-])
-
-const categoriaSeleccionada = ref(0)
-
-const productos = ref([
-  { id: 101, categoriaId: 6, nombre: 'Ensalada de Frutas Fresca', descripcion: 'Combinación fresca de frutilla, kiwi, banana, manzana y jugo natural.', precio: 1500, tiempo: 2, img: 'https://images.unsplash.com/photo-1519996529931-28324d5a630e?q=80&w=500&auto=format&fit=crop', tag: 'Sin TACC', celiaco: true },
-  { id: 102, categoriaId: 6, nombre: 'Manzana / Banana Fresca', descripcion: 'Fruta de estación seleccionada y desinfectada.', precio: 600, tiempo: 1, img: 'https://images.unsplash.com/photo-1619546813926-a78fa6372cd2?q=80&w=500&auto=format&fit=crop', tag: 'Sin TACC', celiaco: true },
-  { id: 103, categoriaId: 6, nombre: 'Licuado de Frutas Naturales', descripcion: 'Licuado de banana con agua o leche apta sin TACC (500ml).', precio: 1800, tiempo: 3, img: 'https://images.unsplash.com/photo-1553530666-ba11a7da3888?q=80&w=500&auto=format&fit=crop', tag: 'Sin TACC', celiaco: true },
-  { id: 104, categoriaId: 6, nombre: 'Yogurt con Frutas (Apto)', descripcion: 'Yogurt libre de gluten bañado en trozos de manzana y banana.', precio: 1900, tiempo: 2, img: 'https://images.unsplash.com/photo-1488477181946-6428a0291777?q=80&w=500&auto=format&fit=crop', tag: 'Sin TACC', celiaco: true },
-  { id: 201, categoriaId: 1, nombre: 'Sándwich Sin TACC de Jamón y Queso', descripcion: 'Elaborado en pan de fécula de mandioca sellado individualmente.', precio: 2800, tiempo: 5, img: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?q=80&w=500&auto=format&fit=crop', tag: 'Sin TACC', celiaco: true },
-  { id: 202, categoriaId: 2, nombre: 'Empanada de Queso Sin TACC', descripcion: 'Masa especial sin gluten con relleno horneado.', precio: 1600, tiempo: 6, img: 'https://images.unsplash.com/photo-1626700051175-6818013e1d4f?q=80&w=500&auto=format&fit=crop', tag: 'Sin TACC', celiaco: true },
-  { id: 1, categoriaId: 1, nombre: 'Hamburguesa Completa', descripcion: 'Carne, queso, lechuga, tomate y aderezo especial.', precio: 2500, tiempo: 8, img: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=500&auto=format&fit=crop', tag: 'Popular', celiaco: false },
-  { id: 4, categoriaId: 1, nombre: 'Sándwich de Milanesa', descripcion: 'Milanesa de carne en pan francés tierno.', precio: 3000, tiempo: 10, img: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?q=80&w=500&auto=format&fit=crop', tag: 'Clásico', celiaco: false },
-  { id: 6, categoriaId: 4, nombre: 'Papas Fritas Con Queso', descripcion: 'Porción grande con salsa cheddar de la casa.', precio: 1800, tiempo: 6, img: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?q=80&w=500&auto=format&fit=crop', tag: 'Crujiente', celiaco: false },
-  { id: 7, categoriaId: 3, nombre: 'Jugo Natural de Naranja', descripcion: 'Exprimido 100% natural sin azúcar agregada 500ml.', precio: 1200, tiempo: 2, img: 'https://images.unsplash.com/photo-1613478223719-2ab802602423?q=80&w=500&auto=format&fit=crop', tag: 'Sin TACC', celiaco: true },
-  { id: 8, categoriaId: 5, nombre: 'Helado Soft Vainilla', descripcion: 'Vaso de helado suave de vainilla.', precio: 900, tiempo: 2, img: 'https://images.unsplash.com/photo-1570197788417-0e82375c9371?q=80&w=500&auto=format&fit=crop', tag: 'Dulce', celiaco: false }
-])
-
-const carrito = ref([])
 const mostrarCarrito = ref(false)
+const mostrarAuth = ref(false)
 const mostrarPago = ref(false)
 const mostrarTicket = ref(false)
-const numeroTurno = ref(42)
 
-const mostrarAuth = ref(false)
-const usuarioActual = ref(null)
+const usuario = ref(null)
+const numeroTurno = ref(42)
+const ultimoTotal = ref(0)
+
+// Historial de pedidos (solo visible para la vendedora)
+const pedidos = ref([])
+
+// Solo la cuenta registrada con este rol ve el Panel de Ventas
+const esVendedora = computed(() => usuario.value?.rol === 'vendedora')
 
 onMounted(() => {
-  const usuarioGuardado = localStorage.getItem('micantina_user')
-  if (usuarioGuardado) {
-    usuarioActual.value = JSON.parse(usuarioGuardado)
+  const guardado = localStorage.getItem('schoolbite_user')
+  if (guardado) usuario.value = JSON.parse(guardado)
+
+  const pedidosGuardados = localStorage.getItem('schoolbite_pedidos')
+  if (pedidosGuardados) pedidos.value = JSON.parse(pedidosGuardados)
+})
+
+// Si por algún motivo se pierde el rol de vendedora estando en esa sección, volvemos a inicio
+watch(esVendedora, (val) => {
+  if (!val && seccionActiva.value === 'ventas') {
+    seccionActiva.value = 'inicio'
   }
 })
 
+// ============ CATEGORÍAS ============
+const categorias = ref([
+  { id: 'platos', nombre: 'Platos', icon: '🍽️', bg: 'bg-amber-50', border: 'border-amber-200', ring: 'ring-amber-400' },
+  { id: 'pizzas', nombre: 'Pizzas', icon: '🍕', bg: 'bg-red-50', border: 'border-red-200', ring: 'ring-red-400' },
+  { id: 'empanadas', nombre: 'Empanadas', icon: '🥟', bg: 'bg-orange-50', border: 'border-orange-200', ring: 'ring-orange-400' },
+  { id: 'pastas', nombre: 'Pastas', icon: '🍝', bg: 'bg-blue-50', border: 'border-blue-200', ring: 'ring-blue-400' },
+  { id: 'tartas', nombre: 'Tartas', icon: '🥧', bg: 'bg-pink-50', border: 'border-pink-200', ring: 'ring-pink-400' },
+  { id: 'sin-tacc', nombre: 'Sin TACC', icon: '🌾', bg: 'bg-emerald-50', border: 'border-emerald-200', ring: 'ring-emerald-400' },
+])
+
+// Incluye "Todos" para la vista de Menú completo
+const categoriasMenu = computed(() => ([
+  { id: 'todos', nombre: 'Todos', icon: '⭐', bg: 'bg-slate-100', border: 'border-slate-300', ring: 'ring-slate-400' },
+  ...categorias.value
+]))
+
+// ============ PRODUCTOS ============
+const productos = ref([
+  {
+    id: 1,
+    nombre: 'Pizza Muzzarella',
+    descripcion: 'Pizza artesanal a la piedra con abundante muzzarella y aceitunas.',
+    precio: 3500,
+    img: '/pizza.jpg',
+    tag: 'Popular',
+    tiempo: 15,
+    categoria: 'pizzas',
+    categoriaLabel: 'Pizzas',
+    destacado: true,
+    celiaco: false
+  },
+  {
+    id: 2,
+    nombre: 'Empanadas de Jamón y Queso',
+    descripcion: 'Empanadas horneadas con queso derretido y jamón.',
+    precio: 1200,
+    img: '/empanadas.jpg',
+    tag: 'Clásico',
+    tiempo: 5,
+    categoria: 'empanadas',
+    categoriaLabel: 'Empanadas',
+    destacado: true,
+    celiaco: false
+  },
+  {
+    id: 3,
+    nombre: 'Spaghetti a la Boloñesa',
+    descripcion: 'Pasta casera acompañada de una exquisita salsa boloñesa.',
+    precio: 2800,
+    img: '/fideos.jpg',
+    tag: 'Plato del día',
+    tiempo: 10,
+    categoria: 'pastas',
+    categoriaLabel: 'Pastas',
+    destacado: true,
+    celiaco: false
+  },
+  {
+    id: 4,
+    nombre: 'Milanesa con Ensalada',
+    descripcion: 'Milanesa dorada y crujiente acompañada de ensalada fresca.',
+    precio: 3200,
+    img: '/milanesa.jpg',
+    tag: 'Recomendado',
+    tiempo: 12,
+    categoria: 'platos',
+    categoriaLabel: 'Platos',
+    destacado: false,
+    celiaco: false
+  },
+  {
+    id: 5,
+    nombre: 'Pechuga de Pollo a la Plancha',
+    descripcion: 'Suprema de pollo condimentada con hierbas finas.',
+    precio: 3000,
+    img: '/pollo.jpg',
+    tag: 'Saludable',
+    tiempo: 10,
+    categoria: 'platos',
+    categoriaLabel: 'Platos',
+    destacado: true,
+    celiaco: true
+  },
+  {
+    id: 6,
+    nombre: 'Medallones Rebozados',
+    descripcion: 'Medallones súper crujientes con guarnición.',
+    precio: 2500,
+    img: '/medallon.jpg',
+    tag: 'Rápido',
+    tiempo: 8,
+    categoria: 'platos',
+    categoriaLabel: 'Platos',
+    destacado: false,
+    celiaco: false
+  },
+  {
+    id: 7,
+    nombre: 'Tarta de Jamón y Queso',
+    descripcion: 'Porción de tarta casera dorada al horno.',
+    precio: 2200,
+    img: '/tarta.jpg',
+    tag: 'Casero',
+    tiempo: 5,
+    categoria: 'tartas',
+    categoriaLabel: 'Tartas',
+    destacado: false,
+    celiaco: false
+  }
+])
+
+const destacados = computed(() => productos.value.filter(p => p.destacado))
+
 const productosFiltrados = computed(() => {
-  if (categoriaSeleccionada.value === 0) return productos.value
-  return productos.value.filter(p => p.categoriaId === categoriaSeleccionada.value)
+  if (categoriaActiva.value === 'todos') return productos.value
+  if (categoriaActiva.value === 'sin-tacc') return productos.value.filter(p => p.celiaco)
+  return productos.value.filter(p => p.categoria === categoriaActiva.value)
 })
 
-const productosCeliacos = computed(() => {
-  return productos.value.filter(p => p.celiaco)
-})
+// ============ CARRITO ============
+const carrito = ref([])
 
-const totalCarrito = computed(() => {
-  return carrito.value.reduce((acc, item) => acc + (item.precio * item.cantidad), 0)
-})
-
-const cantidadTotalItems = computed(() => {
-  return carrito.value.reduce((acc, item) => acc + item.cantidad, 0)
-})
+const cantidadTotal = computed(() => carrito.value.reduce((acc, item) => acc + item.cantidad, 0))
+const totalCarrito = computed(() => carrito.value.reduce((acc, item) => acc + (item.precio * item.cantidad), 0))
 
 const agregarAlCarrito = (prod) => {
-  const existe = carrito.value.find(item => item.id === prod.id)
+  const existe = carrito.value.find(i => i.id === prod.id)
   if (existe) {
     existe.cantidad++
   } else {
@@ -82,187 +182,197 @@ const agregarAlCarrito = (prod) => {
 }
 
 const eliminarDelCarrito = (id) => {
-  carrito.value = carrito.value.filter(item => item.id !== id)
+  carrito.value = carrito.value.filter(i => i.id !== id)
 }
 
-const iniciarProcesoPago = () => {
-  mostrarCarrito.value = false
-  mostrarPago.value = true
+// ============ NAVEGACIÓN ============
+const irArriba = () => window.scrollTo({ top: 0, behavior: 'smooth' })
+
+const cambiarSeccion = (s) => {
+  seccionActiva.value = s
+  irArriba()
 }
 
-const handlePagoExitoso = () => {
-  mostrarPago.value = false
-  numeroTurno.value += 1
-  mostrarTicket.value = true
+const irAMenuConCategoria = (catId) => {
+  categoriaActiva.value = catId
+  seccionActiva.value = 'menu'
+  irArriba()
 }
 
-const reiniciarApp = () => {
-  mostrarTicket.value = false
-  carrito.value = []
+const seleccionarCategoriaMenu = (catId) => {
+  categoriaActiva.value = catId
 }
 
-const handleLoginExitoso = (user) => {
-  usuarioActual.value = user
+// ============ AUTENTICACIÓN ============
+const loginExitoso = (u) => {
+  usuario.value = u
   mostrarAuth.value = false
 }
 
 const logout = () => {
-  localStorage.removeItem('micantina_user')
-  usuarioActual.value = null
+  localStorage.removeItem('schoolbite_user')
+  usuario.value = null
+  if (seccionActiva.value === 'ventas') seccionActiva.value = 'inicio'
+}
+
+// ============ CHECKOUT ============
+const irAPagar = () => {
+  mostrarCarrito.value = false
+  ultimoTotal.value = totalCarrito.value
+  mostrarPago.value = true
+}
+
+const pagoExitoso = (tipoPago) => {
+  // Guardamos el pedido para que la vendedora lo vea en su Panel de Ventas
+  const nuevoPedido = {
+    numero: numeroTurno.value,
+    fecha: new Date().toLocaleString('es-AR'),
+    cliente: usuario.value?.nombre || 'Invitado',
+    items: carrito.value.map(i => ({ nombre: i.nombre, cantidad: i.cantidad })),
+    total: ultimoTotal.value,
+    metodoPago: tipoPago === 'transferencia' ? 'Transferencia / QR' : 'Efectivo en caja'
+  }
+  pedidos.value.unshift(nuevoPedido)
+  localStorage.setItem('schoolbite_pedidos', JSON.stringify(pedidos.value))
+
+  mostrarPago.value = false
+  numeroTurno.value++
+  mostrarTicket.value = true
+}
+
+const reiniciar = () => {
+  mostrarTicket.value = false
+  carrito.value = []
 }
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#F4F5F7] text-slate-900 font-sans pb-16 flex">
-    
-    <div 
-      class="flex-1 transition-all duration-300 ease-in-out min-w-0 flex flex-col"
-      :class="mostrarCarrito ? 'mr-80 md:mr-96' : 'mr-0'"
-    >
-      <Navbar 
-        :cantidadCarrito="cantidadTotalItems" 
-        :seccionActiva="seccionActiva"
-        :usuario="usuarioActual"
-        @cambiar-seccion="(sec) => seccionActiva = sec"
-        @abrir-carrito="mostrarCarrito = !mostrarCarrito" 
-        @abrir-auth="mostrarAuth = true"
-        @logout="logout"
+  <div class="min-h-screen bg-sb-bg font-sans">
+
+    <!-- NAVBAR -->
+    <Navbar
+      :cantidad-carrito="cantidadTotal"
+      :seccion-activa="seccionActiva"
+      :usuario="usuario"
+      :es-vendedora="esVendedora"
+      @cambiar-seccion="cambiarSeccion"
+      @abrir-carrito="mostrarCarrito = true"
+      @abrir-auth="mostrarAuth = true"
+      @logout="logout"
+    />
+
+    <!-- ============ INICIO ============ -->
+    <template v-if="seccionActiva === 'inicio'">
+      <HeroBanner @ver-menu="cambiarSeccion('menu')" @crear-cuenta="mostrarAuth = true" />
+
+      <Categorias
+        :categorias="categorias"
+        :categoria-activa="categoriaActiva === 'todos' ? '' : categoriaActiva"
+        @seleccionar-categoria="irAMenuConCategoria"
       />
 
-      <Transition name="fade" mode="out-in">
-        
-        <!-- VISTA: INICIO -->
-        <div v-if="seccionActiva === 'inicio'" key="inicio">
-          <HeroBanner />
-          
-          <Categorias 
-            :categorias="categorias" 
-            :categoriaActiva="categoriaSeleccionada"
-            @seleccionar-categoria="(id) => categoriaSeleccionada = id"
+      <section class="max-w-6xl mx-auto px-6 pb-16">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
+            <span class="text-amber-400">⭐</span> Destacados del día
+          </h2>
+          <button
+            @click="cambiarSeccion('menu')"
+            class="text-sm font-bold text-sb-red hover:underline cursor-pointer whitespace-nowrap"
+          >
+            Ver todos →
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <ProductoCard
+            v-for="p in destacados"
+            :key="p.id"
+            :producto="p"
+            @agregar="agregarAlCarrito"
           />
-
-          <main class="max-w-6xl mx-auto px-6 py-10">
-            <div class="flex items-center justify-between mb-6">
-              <div>
-                <h2 class="text-2xl font-black text-slate-900">Menú Destacado - MICANTINA</h2>
-                <p class="text-xs text-slate-500 font-semibold">Seleccioná y seguí agregando productos</p>
-              </div>
-              <span class="text-xs text-white font-black bg-sb-red px-3.5 py-1.5 rounded-full shadow-sm">
-                {{ productosFiltrados.length }} opciones
-              </span>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              <ProductoCard 
-                v-for="prod in productosFiltrados" 
-                :key="prod.id" 
-                :producto="prod" 
-                @agregar="agregarAlCarrito"
-              />
-            </div>
-          </main>
         </div>
+      </section>
+    </template>
 
-        <!-- VISTA: MENÚ COMPLETO -->
-        <div v-else-if="seccionActiva === 'menu'" key="menu" class="max-w-6xl mx-auto px-6 py-10 w-full">
-          <div class="mb-8 bg-white p-6 rounded-3xl border border-slate-200 shadow-xs">
-            <h1 class="text-3xl font-black text-slate-900">Catálogo Completo</h1>
-            <p class="text-xs text-slate-500 font-bold mt-1">Explorá todas las opciones disponibles de la cantina</p>
-          </div>
+    <!-- ============ MENÚ COMPLETO ============ -->
+    <template v-else-if="seccionActiva === 'menu'">
+      <section class="pt-10 pb-2">
+        <div class="max-w-6xl mx-auto px-6 text-center">
+          <h1 class="text-2xl sm:text-3xl font-black text-slate-900">¿Qué querés comer hoy?</h1>
+          <p class="text-sm text-slate-500 font-medium mt-1">Elegí tu categoría favorita y hacé tu pedido.</p>
+        </div>
+      </section>
 
-          <Categorias 
-            :categorias="categorias" 
-            :categoriaActiva="categoriaSeleccionada"
-            @seleccionar-categoria="(id) => categoriaSeleccionada = id"
+      <Categorias
+        :categorias="categoriasMenu"
+        :categoria-activa="categoriaActiva"
+        :mostrar-encabezado="false"
+        @seleccionar-categoria="seleccionarCategoriaMenu"
+      />
+
+      <section class="max-w-6xl mx-auto px-6 pb-16">
+        <div v-if="productosFiltrados.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <ProductoCard
+            v-for="p in productosFiltrados"
+            :key="p.id"
+            :producto="p"
+            @agregar="agregarAlCarrito"
           />
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6">
-            <ProductoCard 
-              v-for="prod in productosFiltrados" 
-              :key="prod.id" 
-              :producto="prod" 
-              @agregar="agregarAlCarrito"
-            />
-          </div>
         </div>
-
-        <!-- VISTA: NUTRICIÓN -->
-        <div v-else-if="seccionActiva === 'nutricion'" key="nutricion" class="w-full">
-          <NutricionSection />
+        <div v-else class="text-center py-20">
+          <span class="text-4xl block mb-2">🍽️</span>
+          <p class="text-slate-400 font-bold text-sm">No hay productos en esta categoría todavía.</p>
         </div>
+      </section>
+    </template>
 
-        <!-- VISTA NUEVA: CELÍACOS / SIN TACC -->
-        <div v-else-if="seccionActiva === 'celiacos'" key="celiacos" class="max-w-6xl mx-auto px-6 py-10 w-full">
-          <div class="mb-8 bg-amber-500/10 border border-amber-300 p-6 rounded-3xl flex items-center justify-between">
-            <div>
-              <span class="bg-amber-500 text-white text-[10px] font-black px-3 py-1 rounded-full uppercase">
-                Apto Gluten Free
-              </span>
-              <h1 class="text-3xl font-black text-amber-950 mt-2">Comida para Celíacos (Sin TACC)</h1>
-              <p class="text-xs text-amber-900 font-semibold mt-1">
-                Alimentos manipulados bajo protocolos anti contaminación cruzada y empaquetados individualmente.
-              </p>
-            </div>
-            <span class="text-5xl">🌾</span>
-          </div>
+    <!-- ============ NUTRICIÓN ============ -->
+    <template v-else-if="seccionActiva === 'nutricion'">
+      <NutricionSection />
+    </template>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            <ProductoCard 
-              v-for="prod in productosCeliacos" 
-              :key="prod.id" 
-              :producto="prod" 
-              @agregar="agregarAlCarrito"
-            />
-          </div>
-        </div>
+    <!-- ============ PANEL DE VENTAS (solo vendedora) ============ -->
+    <template v-else-if="seccionActiva === 'ventas' && esVendedora">
+      <VentasSection :pedidos="pedidos" />
+    </template>
 
-      </Transition>
-    </div>
+    <!-- ============ CARRITO (DRAWER) ============ -->
+    <div
+      v-if="mostrarCarrito"
+      @click="mostrarCarrito = false"
+      class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-30"
+    ></div>
 
-    <!-- Carrito Lateral -->
-    <CarritoModal 
-      :mostrar="mostrarCarrito" 
-      :items="carrito" 
+    <CarritoModal
+      :mostrar="mostrarCarrito"
+      :items="carrito"
       :total="totalCarrito"
       @cerrar="mostrarCarrito = false"
       @eliminar="eliminarDelCarrito"
-      @finalizar="iniciarProcesoPago"
+      @finalizar="irAPagar"
     />
 
-    <!-- Modal de Pago (lata.isae) -->
-    <PasarelaPagoModal
-      :mostrar="mostrarPago"
-      :total="totalCarrito"
-      @cerrar="mostrarPago = false"
-      @pago-exitoso="handlePagoExitoso"
-    />
-
-    <!-- Ticket Modal -->
-    <TicketModal 
-      :mostrar="mostrarTicket" 
-      :numeroPedido="numeroTurno"
-      :total="totalCarrito"
-      @cerrar="reiniciarApp"
-    />
-
-    <!-- Modal Autenticación -->
+    <!-- ============ MODALES ============ -->
     <AuthModal
       :mostrar="mostrarAuth"
       @cerrar="mostrarAuth = false"
-      @login-exitoso="handleLoginExitoso"
+      @login-exitoso="loginExitoso"
     />
+
+    <PasarelaPagoModal
+      :mostrar="mostrarPago"
+      :total="ultimoTotal"
+      @cerrar="mostrarPago = false"
+      @pago-exitoso="pagoExitoso"
+    />
+
+    <TicketModal
+      :mostrar="mostrarTicket"
+      :numero-pedido="numeroTurno"
+      :total="ultimoTotal"
+      @cerrar="reiniciar"
+    />
+
   </div>
 </template>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(6px);
-}
-</style>
