@@ -1,0 +1,88 @@
+rules_version = '2';
+
+// Reglas de seguridad de Cloud Firestore para MiCantina.
+//
+// CÓMO USAR ESTE ARCHIVO:
+// Andá a Firebase Console -> tu proyecto -> Firestore Database -> pestaña
+// "Reglas", borrá lo que haya y pegá este archivo completo. Dale a "Publicar".
+//
+// LIMITACIÓN IMPORTANTE (léela antes de usar la app con gente de verdad):
+// Firestore no tiene forma de validar "quién puede tener el rol vendedora o
+// master" sin un backend propio (Cloud Functions con "custom claims"). Estas
+// reglas confían en que el campo `rol` de cada usuario ya fue puesto
+// correctamente por la app (que solo lo hace a mano para los dos emails fijos
+// de cantina_provider.dart). Alguien con conocimientos técnicos que edite la
+// base de datos directamente con las credenciales de otra persona podría, en
+// teoría, forzar su propio rol. Para una cantina escolar interna el riesgo es
+// bajo, pero para algo más sensible convendría migrar a Cloud Functions.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function esUsuarioAutenticado() {
+      return request.auth != null;
+    }
+
+    // Lee el rol del usuario que hace el pedido, para decidir qué puede ver.
+    function miRol() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol;
+    }
+
+    function esVendedoraOMaster() {
+      return esUsuarioAutenticado() &&
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        miRol() in ['vendedora', 'master'];
+    }
+
+    function esMaster() {
+      return esUsuarioAutenticado() &&
+        exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) &&
+        miRol() == 'master';
+    }
+
+    // --- usuarios/{uid}: nombre, email y rol de cada cuenta ---
+    match /usuarios/{uid} {
+      // Cada quien puede crear y leer SU PROPIO perfil (así entra a la app).
+      allow create: if esUsuarioAutenticado() && request.auth.uid == uid;
+      allow get: if esUsuarioAutenticado() && request.auth.uid == uid;
+      // Solo la cuenta master puede listar TODOS los usuarios (Panel de Ventas).
+      allow list: if esMaster();
+      // Nadie edita o borra perfiles ajenos desde la app.
+      allow update, delete: if false;
+    }
+
+    // --- pedidos/{id}: cada pedido hecho desde la app ---
+    match /pedidos/{id} {
+      // Cualquier persona logueada (incluso invitada, con sesión anónima)
+      // puede crear un pedido a su nombre.
+      allow create: if esUsuarioAutenticado() && request.resource.data.uid == request.auth.uid;
+      // Ver un pedido puntual: su dueño, o la vendedora/master.
+      allow get: if esUsuarioAutenticado() &&
+        (resource.data.uid == request.auth.uid || esVendedoraOMaster());
+      // Ver la lista completa de pedidos: solo vendedora/master (Panel de Ventas).
+      allow list: if esVendedoraOMaster();
+      // Calificar el propio pedido (posventa): solo cambia calificación y comentario.
+      allow update: if esUsuarioAutenticado() && resource.data.uid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['calificacion', 'comentario']);
+      allow delete: if false;
+    }
+
+    // --- contadores/turnos: un solo documento con el último número del día ---
+    match /contadores/turnos {
+      allow read: if esUsuarioAutenticado();
+      // Lo escribe la transacción de confirmarPago(); cualquier persona
+      // logueada puede pedir, así que cualquiera puede avanzar el contador.
+      allow write: if esUsuarioAutenticado();
+    }
+
+    // --- productos/{id}: el catálogo de la cantina ---
+    match /productos/{id} {
+      // Cualquiera logueado (incluso invitado, con sesión anónima) necesita
+      // ver el menú para poder pedir.
+      allow read: if esUsuarioAutenticado();
+      // Solo la vendedora y la cuenta master pueden agregar, editar o borrar
+      // productos ("su propia base de datos" del catálogo).
+      allow create, update, delete: if esVendedoraOMaster();
+    }
+  }
+}

@@ -1,11 +1,11 @@
 {
-    "name": "soft_gabi",
-    "short_name": "soft_gabi",
+    "name": "MiCantina",
+    "short_name": "MiCantina",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#DA291C",
+    "theme_color": "#DA291C",
+    "description": "MiCantina - pedidos de la cantina escolar.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Para que la vendedora pueda sacar una foto nueva al cargar un producto
+         (elegir una foto existente de la galería no necesita este permiso). -->
+    <uses-permission android:name="android.permission.CAMERA"/>
     <application
-        android:label="soft_gabi"
+        android:label="MiCantina"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
