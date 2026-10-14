@@ -1,4 +1,6 @@
 <script setup>
+import { Check } from 'lucide-vue-next'
+
 defineProps({
   mostrar: Boolean,
   numeroPedido: Number,
@@ -17,8 +19,8 @@ defineEmits(['cerrar'])
     <div class="relative bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl z-10 border border-slate-200 text-center">
       
       <!-- Icono de éxito -->
-      <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-4 font-black">
-        ✓
+      <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+        <Check :size="28" />
       </div>
 
       <h3 class="text-2xl font-black text-slate-900 leading-tight">¡Pedido Confirmado!</h3>

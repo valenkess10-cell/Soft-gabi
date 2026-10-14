@@ -1,4 +1,6 @@
 <script setup>
+import { ClipboardList, User, ShoppingCart } from 'lucide-vue-next'
+
 defineProps({
   cantidadCarrito: Number,
   seccionActiva: String,
@@ -75,15 +77,15 @@ defineEmits(['cambiar-seccion', 'abrir-carrito', 'abrir-auth', 'logout'])
           ? 'bg-slate-900 text-white shadow-sm'
           : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'"
       >
-        📋 Panel de Ventas
+        <ClipboardList :size="14" /> Panel de Ventas
       </button>
     </div>
 
     <!-- Usuario & Carrito -->
     <div class="flex items-center gap-3 sm:gap-5 shrink-0">
       <div v-if="usuario" class="hidden sm:flex items-center gap-2">
-        <span class="text-sm font-bold text-slate-800">
-          👤 {{ usuario.nombre?.split(' ')[0] }}
+        <span class="text-sm font-bold text-slate-800 flex items-center gap-1">
+          <User :size="14" /> {{ usuario.nombre?.split(' ')[0] }}
           <span v-if="esVendedoraOMaster" class="text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full ml-1">
             {{ etiquetaRol }}
           </span>
@@ -108,7 +110,7 @@ defineEmits(['cambiar-seccion', 'abrir-carrito', 'abrir-auth', 'logout'])
         @click="$emit('abrir-carrito')"
         class="relative bg-sb-yellow hover:bg-sb-yellow-hover active:scale-95 text-slate-900 px-4 py-2.5 rounded-full font-black text-sm transition-all cursor-pointer shadow-sm flex items-center gap-2 whitespace-nowrap"
       >
-        🛒 <span class="hidden sm:inline">Mi Pedido</span>
+        <ShoppingCart :size="16" /> <span class="hidden sm:inline">Mi Pedido</span>
         <span
           v-if="cantidadCarrito > 0"
           class="absolute -top-1.5 -right-1.5 bg-sb-red text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center border-2 border-white"

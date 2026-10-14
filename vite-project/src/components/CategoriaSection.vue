@@ -1,9 +1,11 @@
 <script setup>
+import { UtensilsCrossed } from 'lucide-vue-next'
 import ProductoCard from './ProductoCard.vue'
+import { iconoDeCategoria } from '../data/iconos.js'
 
-defineProps({
+const props = defineProps({
   titulo: String,
-  icono: String,
+  categoriaId: String,
   productos: Array
 })
 
@@ -14,7 +16,7 @@ defineEmits(['agregar'])
   <section class="pt-10 pb-16">
     <div class="max-w-6xl mx-auto px-6">
       <div class="text-center mb-8">
-        <span class="text-4xl block mb-2">{{ icono }}</span>
+        <component :is="iconoDeCategoria(categoriaId)" :size="36" class="text-slate-700 mx-auto mb-2" />
         <h1 class="text-2xl sm:text-3xl font-black text-slate-900">{{ titulo }}</h1>
       </div>
 
@@ -27,7 +29,7 @@ defineEmits(['agregar'])
         />
       </div>
       <div v-else class="text-center py-20">
-        <span class="text-4xl block mb-2">🍽️</span>
+        <UtensilsCrossed :size="40" class="text-slate-300 mx-auto mb-2" />
         <p class="text-slate-400 font-bold text-sm">No hay productos en esta categoría todavía.</p>
       </div>
     </div>

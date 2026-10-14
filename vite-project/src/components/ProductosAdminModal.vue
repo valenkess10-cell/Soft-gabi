@@ -1,7 +1,9 @@
 <script setup>
 import { ref, computed } from 'vue'
+import { FolderOpen, X, UtensilsCrossed } from 'lucide-vue-next'
 import { useCantina } from '../composables/useCantina.js'
 import { resolverImagenUrl } from '../data/catalogo.js'
+import { iconoDeEmoji, iconoDeCategoria } from '../data/iconos.js'
 
 defineProps({
   mostrar: Boolean
@@ -139,12 +141,12 @@ async function borrar(producto) {
     <div class="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 shadow-2xl">
 
       <div class="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50 shrink-0">
-        <h3 class="text-lg font-black text-slate-900 flex items-center gap-2">🗂️ Mis productos</h3>
+        <h3 class="text-lg font-black text-slate-900 flex items-center gap-2"><FolderOpen :size="18" /> Mis productos</h3>
         <button
           @click="$emit('cerrar')"
           class="w-7 h-7 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-black text-xs flex items-center justify-center transition-colors cursor-pointer"
         >
-          ✕
+          <X :size="14" />
         </button>
       </div>
 
@@ -159,7 +161,7 @@ async function borrar(producto) {
           <div class="flex items-center gap-3">
             <div class="w-16 h-16 rounded-xl bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
               <img v-if="previewImagen" :src="previewImagen" class="w-full h-full object-cover" />
-              <span v-else class="text-2xl">🍽️</span>
+              <UtensilsCrossed v-else :size="24" class="text-slate-400" />
             </div>
             <div class="flex-1 space-y-1">
               <label class="inline-block text-xs font-bold bg-slate-900 text-white px-3 py-1.5 rounded-lg cursor-pointer hover:bg-slate-800">
@@ -225,10 +227,10 @@ async function borrar(producto) {
               v-for="c in categorias"
               :key="c.id"
               @click="filtroCategoria = c.id"
-              class="px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap cursor-pointer transition-colors"
+              class="px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap cursor-pointer transition-colors flex items-center gap-1"
               :class="filtroCategoria === c.id ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
             >
-              {{ c.icono }} {{ c.nombre }}
+              <component :is="iconoDeCategoria(c.id)" :size="12" /> {{ c.nombre }}
             </button>
           </div>
 
@@ -240,7 +242,7 @@ async function borrar(producto) {
             >
               <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
                 <img v-if="resolverImagenUrl(p)" :src="resolverImagenUrl(p)" class="w-full h-full object-cover" />
-                <span v-else class="text-xl">{{ p.emoji || '🍽️' }}</span>
+                <component :is="iconoDeEmoji(p.emoji)" v-else :size="20" class="text-slate-400" />
               </div>
               <div class="flex-1 min-w-0">
                 <p class="font-black text-xs text-slate-900 truncate">{{ p.nombre }}</p>

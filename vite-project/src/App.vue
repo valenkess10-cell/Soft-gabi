@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { UtensilsCrossed, Star, ArrowRight } from 'lucide-vue-next'
 
 import Navbar from './components/Navbar.vue'
 import HeroBanner from './components/HeroBanner.vue'
@@ -115,7 +116,7 @@ const reiniciar = () => {
   <div class="min-h-screen bg-sb-bg font-sans">
 
     <div v-if="!listo" class="min-h-screen flex items-center justify-center">
-      <span class="text-3xl animate-pulse">🍽️</span>
+      <UtensilsCrossed :size="36" class="text-slate-300 animate-pulse" />
     </div>
 
     <template v-else>
@@ -145,13 +146,13 @@ const reiniciar = () => {
         <section class="max-w-6xl mx-auto px-6 pb-16">
           <div class="flex items-center justify-between mb-5">
             <h2 class="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
-              <span class="text-amber-400">⭐</span> Destacados del día
+              <Star :size="20" class="text-amber-400 fill-amber-400" /> Destacados del día
             </h2>
             <button
               @click="cambiarSeccion('menu')"
-              class="text-sm font-bold text-sb-red hover:underline cursor-pointer whitespace-nowrap"
+              class="text-sm font-bold text-sb-red hover:underline cursor-pointer whitespace-nowrap flex items-center gap-1"
             >
-              Ver todos →
+              Ver todos <ArrowRight :size="14" />
             </button>
           </div>
 
@@ -192,7 +193,7 @@ const reiniciar = () => {
             />
           </div>
           <div v-else class="text-center py-20">
-            <span class="text-4xl block mb-2">🍽️</span>
+            <UtensilsCrossed :size="40" class="text-slate-300 mx-auto mb-2" />
             <p class="text-slate-400 font-bold text-sm">No hay productos en esta categoría todavía.</p>
           </div>
         </section>
@@ -202,7 +203,7 @@ const reiniciar = () => {
       <template v-else-if="seccionActiva === 'desayuno'">
         <CategoriaSection
           titulo="Desayuno y Merienda"
-          icono="🥐"
+          categoria-id="desayuno"
           :productos="productosDesayuno"
           @agregar="agregarAlCarrito"
         />
@@ -212,7 +213,7 @@ const reiniciar = () => {
       <template v-else-if="seccionActiva === 'bebidas'">
         <CategoriaSection
           titulo="Bebidas"
-          icono="🥤"
+          categoria-id="bebidas"
           :productos="productosBebidas"
           @agregar="agregarAlCarrito"
         />

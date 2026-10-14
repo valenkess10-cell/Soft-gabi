@@ -1,4 +1,6 @@
 <script setup>
+import { Sparkles, ArrowRight, Star, Sandwich, Apple, Croissant } from 'lucide-vue-next'
+
 defineProps({
   stats: {
     type: Object,
@@ -22,7 +24,7 @@ defineEmits(['ver-menu', 'crear-cuenta'])
     <div class="relative max-w-6xl mx-auto px-6 w-full z-10 py-16">
       <div class="max-w-xl">
         <span class="inline-flex items-center gap-1.5 bg-amber-400/10 text-amber-300 border border-amber-400/30 text-xs font-bold px-3.5 py-1.5 rounded-full mb-5">
-          ✨ Menú del día disponible
+          <Sparkles :size="12" /> Menú del día disponible
         </span>
 
         <h1 class="text-4xl sm:text-5xl md:text-6xl font-black mb-5 tracking-tight leading-[1.05]">
@@ -39,7 +41,7 @@ defineEmits(['ver-menu', 'crear-cuenta'])
             @click="$emit('ver-menu')"
             class="bg-sb-red hover:bg-sb-red-dark active:scale-95 text-white px-6 py-3.5 rounded-xl font-black text-sm transition-all shadow-lg cursor-pointer flex items-center gap-2"
           >
-            Ver Menú Completo →
+            Ver Menú Completo <ArrowRight :size="16" />
           </button>
           <button
             @click="$emit('crear-cuenta')"
@@ -59,7 +61,7 @@ defineEmits(['ver-menu', 'crear-cuenta'])
             <p class="text-xs text-slate-400 font-semibold">Tiempo promedio</p>
           </div>
           <div>
-            <p class="text-2xl font-black flex items-center gap-1">{{ stats.valoracion }} <span class="text-amber-400">⭐</span></p>
+            <p class="text-2xl font-black flex items-center gap-1">{{ stats.valoracion }} <Star :size="18" class="text-amber-400 fill-amber-400" /></p>
             <p class="text-xs text-slate-400 font-semibold">Valoración</p>
           </div>
         </div>
@@ -69,15 +71,15 @@ defineEmits(['ver-menu', 'crear-cuenta'])
     <!-- Tarjetas flotantes -->
     <div class="hidden lg:flex flex-col gap-3 absolute right-8 top-1/2 -translate-y-1/2 z-10">
       <div class="bg-amber-50/95 text-slate-900 rounded-2xl px-5 py-3.5 shadow-xl flex items-center gap-3 w-64">
-        <span class="text-xl">🥪</span>
+        <Sandwich :size="22" class="text-amber-600" />
         <span class="text-sm font-bold">Sandwiches frescos</span>
       </div>
       <div class="bg-emerald-50/95 text-slate-900 rounded-2xl px-5 py-3.5 shadow-xl flex items-center gap-3 w-64">
-        <span class="text-xl">🍎</span>
+        <Apple :size="22" class="text-emerald-600" />
         <span class="text-sm font-bold">Frutas naturales</span>
       </div>
       <div class="bg-orange-50/95 text-slate-900 rounded-2xl px-5 py-3.5 shadow-xl flex items-center gap-3 w-64">
-        <span class="text-xl">🥟</span>
+        <Croissant :size="22" class="text-orange-600" />
         <span class="text-sm font-bold">Empanadas del día</span>
       </div>
     </div>

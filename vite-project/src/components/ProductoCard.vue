@@ -1,6 +1,8 @@
 <script setup>
 import { computed } from 'vue'
+import { Timer, Plus } from 'lucide-vue-next'
 import { resolverImagenUrl } from '../data/catalogo.js'
+import { iconoDeEmoji } from '../data/iconos.js'
 import { useCantina } from '../composables/useCantina.js'
 
 const props = defineProps({
@@ -13,6 +15,7 @@ const { categoriasDeKiosco } = useCantina()
 
 const urlImagen = computed(() => resolverImagenUrl(props.producto))
 const esDeKiosco = computed(() => categoriasDeKiosco.has(props.producto.categoria))
+const iconoRespaldo = computed(() => iconoDeEmoji(props.producto.emoji))
 </script>
 
 <template>
@@ -26,16 +29,16 @@ const esDeKiosco = computed(() => categoriasDeKiosco.has(props.producto.categori
       />
       <div
         v-else
-        class="w-full h-40 flex items-center justify-center bg-slate-100 text-5xl group-hover:scale-105 transition-transform duration-500"
+        class="w-full h-40 flex items-center justify-center bg-slate-100 text-slate-400 group-hover:scale-105 transition-transform duration-500"
       >
-        {{ producto.emoji || '🍽️' }}
+        <component :is="iconoRespaldo" :size="40" />
       </div>
 
       <span
         v-if="!esDeKiosco"
         class="absolute top-2.5 left-2.5 bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1"
       >
-        ⏱ {{ producto.tiempo }} min
+        <Timer :size="12" /> {{ producto.tiempo }} min
       </span>
       <span v-if="producto.tag" class="absolute top-2.5 right-2.5 bg-white/95 text-slate-900 text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm">
         {{ producto.tag }}
@@ -57,7 +60,7 @@ const esDeKiosco = computed(() => categoriasDeKiosco.has(props.producto.categori
         @click="$emit('agregar', producto)"
         class="w-full bg-sb-yellow hover:bg-sb-yellow-hover active:scale-95 text-slate-900 font-black py-2.5 rounded-xl transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer"
       >
-        <span class="text-sm">+</span>
+        <Plus :size="14" />
         <span>Agregar al Carrito</span>
       </button>
     </div>

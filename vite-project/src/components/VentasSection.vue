@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { Lock, ClipboardList, FolderOpen, ShoppingBasket, Users } from 'lucide-vue-next'
 
 const props = defineProps({
   pedidos: {
@@ -50,8 +51,8 @@ const formatearFecha = (fecha) => {
     <!-- Encabezado -->
     <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-6">
       <div class="space-y-2">
-        <span class="bg-amber-100 text-amber-800 text-xs font-black px-3 py-1 rounded-full border border-amber-200">
-          🔒 Acceso exclusivo · Personal
+        <span class="bg-amber-100 text-amber-800 text-xs font-black px-3 py-1 rounded-full border border-amber-200 inline-flex items-center gap-1">
+          <Lock :size="12" /> Acceso exclusivo · Personal
         </span>
         <h1 class="text-3xl font-black text-slate-900">Panel de Ventas</h1>
         <p class="text-xs text-slate-500 font-bold max-w-xl">
@@ -59,12 +60,12 @@ const formatearFecha = (fecha) => {
         </p>
       </div>
       <div class="flex flex-col items-center gap-3">
-        <div class="text-5xl">📋</div>
+        <ClipboardList :size="44" class="text-slate-300" />
         <button
           @click="$emit('abrir-productos')"
-          class="bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap"
+          class="bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5"
         >
-          🗂️ Mis productos
+          <FolderOpen :size="14" /> Mis productos
         </button>
       </div>
     </div>
@@ -93,7 +94,7 @@ const formatearFecha = (fecha) => {
       </div>
 
       <div v-if="pedidos.length === 0" class="py-16 text-center">
-        <span class="text-4xl block mb-2">🧺</span>
+        <ShoppingBasket :size="40" class="text-slate-300 mx-auto mb-2" />
         <p class="text-slate-400 font-bold text-sm">Todavía no recibiste ningún pedido.</p>
       </div>
 
@@ -141,7 +142,7 @@ const formatearFecha = (fecha) => {
       </div>
 
       <div v-if="usuarios.length === 0" class="py-16 text-center">
-        <span class="text-4xl block mb-2">👥</span>
+        <Users :size="40" class="text-slate-300 mx-auto mb-2" />
         <p class="text-slate-400 font-bold text-sm">Todavía no hay usuarios registrados.</p>
       </div>
 

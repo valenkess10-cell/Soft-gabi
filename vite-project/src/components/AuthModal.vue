@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { X } from 'lucide-vue-next'
 import { useCantina } from '../composables/useCantina.js'
 
 defineProps({
@@ -59,7 +60,7 @@ const handleSubmit = async () => {
     <div @click="$emit('cerrar')" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
 
     <div class="relative bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl z-10 border border-slate-200">
-      <button @click="$emit('cerrar')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold">✕</button>
+      <button @click="$emit('cerrar')" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold"><X :size="16" /></button>
 
       <div class="text-center mb-6">
         <h3 class="text-2xl font-black text-slate-900">{{ esLogin ? 'Iniciá Sesión' : 'Creá tu Cuenta' }}</h3>

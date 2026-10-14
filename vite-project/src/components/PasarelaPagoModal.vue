@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { CreditCard, X, Smartphone, Wallet, Banknote, Store, Loader2 } from 'lucide-vue-next'
 
 const props = defineProps({
   mostrar: Boolean,
@@ -10,10 +11,10 @@ const emit = defineEmits(['cerrar', 'pago-exitoso'])
 
 // 4 métodos de pago, igual que en la app (metodoPagoLabel de cantina_provider.dart).
 const metodos = [
-  { id: 'transferencia', icono: '📱', nombre: 'Transferencia', etiqueta: 'Transferencia bancaria' },
-  { id: 'mercadopago', icono: '💙', nombre: 'Mercado Pago', etiqueta: 'Mercado Pago' },
-  { id: 'tarjeta', icono: '💳', nombre: 'Tarjeta', etiqueta: 'Tarjeta en caja' },
-  { id: 'efectivo', icono: '💵', nombre: 'Efectivo', etiqueta: 'Efectivo en caja' },
+  { id: 'transferencia', icono: Smartphone, nombre: 'Transferencia', etiqueta: 'Transferencia bancaria' },
+  { id: 'mercadopago', icono: Wallet, nombre: 'Mercado Pago', etiqueta: 'Mercado Pago' },
+  { id: 'tarjeta', icono: CreditCard, nombre: 'Tarjeta', etiqueta: 'Tarjeta en caja' },
+  { id: 'efectivo', icono: Banknote, nombre: 'Efectivo', etiqueta: 'Efectivo en caja' },
 ]
 
 const tipoPago = ref('transferencia')
@@ -48,14 +49,14 @@ const confirmarPago = () => {
       <!-- Header -->
       <div class="flex justify-between items-center pb-4 border-b border-slate-100">
         <div class="flex items-center gap-2">
-          <span class="text-xl">💳</span>
+          <CreditCard :size="20" class="text-slate-700" />
           <h3 class="text-lg font-black text-slate-900">Abonar Pedido</h3>
         </div>
         <button
           @click="$emit('cerrar')"
           class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs flex items-center justify-center transition-colors cursor-pointer"
         >
-          ✕
+          <X :size="14" />
         </button>
       </div>
 
@@ -65,10 +66,10 @@ const confirmarPago = () => {
           v-for="m in metodos"
           :key="m.id"
           @click="tipoPago = m.id"
-          class="py-2 rounded-xl text-xs font-black transition-all cursor-pointer"
+          class="py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5"
           :class="tipoPago === m.id ? 'bg-sb-red text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'"
         >
-          {{ m.icono }} {{ m.nombre }}
+          <component :is="m.icono" :size="14" /> {{ m.nombre }}
         </button>
       </div>
 
@@ -98,7 +99,7 @@ const confirmarPago = () => {
             @click="copiarAlias"
             class="bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all cursor-pointer"
           >
-            {{ copiado ? '¡Copiado! ✓' : 'Copiar' }}
+            {{ copiado ? '¡Copiado!' : 'Copiar' }}
           </button>
         </div>
       </div>
@@ -122,14 +123,14 @@ const confirmarPago = () => {
             @click="copiarAlias"
             class="bg-sky-600 hover:bg-sky-700 active:scale-95 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all cursor-pointer"
           >
-            {{ copiado ? '¡Copiado! ✓' : 'Copiar' }}
+            {{ copiado ? '¡Copiado!' : 'Copiar' }}
           </button>
         </div>
       </div>
 
       <!-- DETALLE: TARJETA -->
       <div v-else-if="tipoPago === 'tarjeta'" class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 text-center space-y-2">
-        <span class="text-3xl">💳</span>
+        <CreditCard :size="32" class="text-indigo-600 mx-auto" />
         <h4 class="text-sm font-black text-indigo-900">Pago con Tarjeta</h4>
         <p class="text-xs text-indigo-800 font-medium">
           Pagás con débito o crédito en la caja al retirar tu pedido, por
@@ -139,7 +140,7 @@ const confirmarPago = () => {
 
       <!-- DETALLE: EFECTIVO -->
       <div v-else class="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center space-y-2">
-        <span class="text-3xl">🏬</span>
+        <Store :size="32" class="text-amber-600 mx-auto" />
         <h4 class="text-sm font-black text-amber-900">Pago en Mostrador</h4>
         <p class="text-xs text-amber-800 font-medium">
           Abonás los <strong class="font-black text-amber-950">${{ total.toLocaleString('es-AR') }}</strong> en efectivo directamente al retirar tu pedido en la cantina.
@@ -152,7 +153,7 @@ const confirmarPago = () => {
         :disabled="procesando"
         class="w-full mt-5 bg-sb-red hover:bg-red-700 active:scale-95 text-white font-black py-3.5 rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
       >
-        <span v-if="procesando" class="animate-spin text-sm">🌀</span>
+        <Loader2 v-if="procesando" :size="16" class="animate-spin" />
         <span>{{ procesando ? 'Registrando Pedido...' : 'Confirmar Pedido' }}</span>
       </button>
 
