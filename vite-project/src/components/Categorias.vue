@@ -38,7 +38,7 @@ defineEmits(['seleccionar-categoria'])
             categoriaActiva === cat.id ? 'ring-2 ring-offset-2 ' + cat.ring + ' scale-[1.03]' : 'hover:-translate-y-0.5'
           ]"
         >
-          <span class="text-2xl">{{ cat.icon }}</span>
+          <span class="text-2xl">{{ cat.icono }}</span>
           <span class="text-xs sm:text-sm font-bold text-slate-800 text-center leading-tight">{{ cat.nombre }}</span>
         </button>
       </div>

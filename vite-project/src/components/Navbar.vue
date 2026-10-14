@@ -3,7 +3,8 @@ defineProps({
   cantidadCarrito: Number,
   seccionActiva: String,
   usuario: Object,
-  esVendedora: Boolean
+  esVendedoraOMaster: Boolean,
+  etiquetaRol: String
 })
 
 defineEmits(['cambiar-seccion', 'abrir-carrito', 'abrir-auth', 'logout'])
@@ -47,17 +48,27 @@ defineEmits(['cambiar-seccion', 'abrir-carrito', 'abrir-auth', 'logout'])
       </button>
 
       <button
-        @click="$emit('cambiar-seccion', 'nutricion')"
+        @click="$emit('cambiar-seccion', 'desayuno')"
         class="px-4 py-2 rounded-full text-sm font-bold transition-all cursor-pointer whitespace-nowrap"
-        :class="seccionActiva === 'nutricion'
+        :class="seccionActiva === 'desayuno'
           ? 'bg-sb-red text-white shadow-sm'
           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'"
       >
-        Nutrición
+        Desayuno
       </button>
 
       <button
-        v-if="esVendedora"
+        @click="$emit('cambiar-seccion', 'bebidas')"
+        class="px-4 py-2 rounded-full text-sm font-bold transition-all cursor-pointer whitespace-nowrap"
+        :class="seccionActiva === 'bebidas'
+          ? 'bg-sb-red text-white shadow-sm'
+          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'"
+      >
+        Bebidas
+      </button>
+
+      <button
+        v-if="esVendedoraOMaster"
         @click="$emit('cambiar-seccion', 'ventas')"
         class="px-4 py-2 rounded-full text-sm font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5"
         :class="seccionActiva === 'ventas'
@@ -71,7 +82,12 @@ defineEmits(['cambiar-seccion', 'abrir-carrito', 'abrir-auth', 'logout'])
     <!-- Usuario & Carrito -->
     <div class="flex items-center gap-3 sm:gap-5 shrink-0">
       <div v-if="usuario" class="hidden sm:flex items-center gap-2">
-        <span class="text-sm font-bold text-slate-800">👤 {{ usuario.nombre.split(' ')[0] }}</span>
+        <span class="text-sm font-bold text-slate-800">
+          👤 {{ usuario.nombre?.split(' ')[0] }}
+          <span v-if="esVendedoraOMaster" class="text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full ml-1">
+            {{ etiquetaRol }}
+          </span>
+        </span>
         <button
           @click="$emit('logout')"
           class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-2.5 py-1 rounded-full transition-colors cursor-pointer"

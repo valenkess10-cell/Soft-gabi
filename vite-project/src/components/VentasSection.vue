@@ -5,8 +5,18 @@ const props = defineProps({
   pedidos: {
     type: Array,
     default: () => []
+  },
+  usuarios: {
+    type: Array,
+    default: () => []
+  },
+  esMaster: {
+    type: Boolean,
+    default: false
   }
 })
+
+defineEmits(['abrir-productos'])
 
 const cantidadPedidos = computed(() => props.pedidos.length)
 
@@ -15,9 +25,23 @@ const totalRecaudado = computed(() =>
 )
 
 const pedidosHoy = computed(() => {
-  const hoy = new Date().toLocaleDateString('es-AR')
-  return props.pedidos.filter(p => p.fecha.startsWith(hoy)).length
+  const hoy = new Date()
+  return props.pedidos.filter((p) => {
+    const fecha = p.fecha instanceof Date ? p.fecha : new Date(p.fecha)
+    return fecha.toDateString() === hoy.toDateString()
+  }).length
 })
+
+const etiquetaRol = (rol) => {
+  if (rol === 'master') return 'Administrador'
+  if (rol === 'vendedora') return 'Vendedora'
+  return 'Cliente'
+}
+
+const formatearFecha = (fecha) => {
+  const d = fecha instanceof Date ? fecha : new Date(fecha)
+  return d.toLocaleString('es-AR')
+}
 </script>
 
 <template>
@@ -27,14 +51,22 @@ const pedidosHoy = computed(() => {
     <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-xs flex flex-col md:flex-row items-center justify-between gap-6">
       <div class="space-y-2">
         <span class="bg-amber-100 text-amber-800 text-xs font-black px-3 py-1 rounded-full border border-amber-200">
-          🔒 Acceso exclusivo · Vendedora
+          🔒 Acceso exclusivo · Personal
         </span>
         <h1 class="text-3xl font-black text-slate-900">Panel de Ventas</h1>
         <p class="text-xs text-slate-500 font-bold max-w-xl">
           Acá vas a ver todos los pedidos que te van haciendo en tiempo real, con el detalle de cada uno para prepararlos y entregarlos.
         </p>
       </div>
-      <div class="text-5xl">📋</div>
+      <div class="flex flex-col items-center gap-3">
+        <div class="text-5xl">📋</div>
+        <button
+          @click="$emit('abrir-productos')"
+          class="bg-slate-900 hover:bg-slate-800 active:scale-95 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer whitespace-nowrap"
+        >
+          🗂️ Mis productos
+        </button>
+      </div>
     </div>
 
     <!-- Estadísticas rápidas -->
@@ -68,7 +100,7 @@ const pedidosHoy = computed(() => {
       <div v-else class="divide-y divide-slate-100">
         <div
           v-for="pedido in pedidos"
-          :key="pedido.numero + pedido.fecha"
+          :key="pedido.id"
           class="p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:bg-slate-50/60 transition-colors"
         >
           <div class="flex items-start gap-4">
@@ -78,7 +110,7 @@ const pedidosHoy = computed(() => {
             </div>
             <div>
               <p class="font-black text-sm text-slate-900">{{ pedido.cliente }}</p>
-              <p class="text-[11px] text-slate-500 font-bold">{{ pedido.fecha }}</p>
+              <p class="text-[11px] text-slate-500 font-bold">{{ formatearFecha(pedido.fecha) }}</p>
               <ul class="mt-2 space-y-0.5">
                 <li
                   v-for="(item, idx) in pedido.items"
@@ -97,6 +129,42 @@ const pedidosHoy = computed(() => {
             </span>
             <span class="text-lg font-black text-sb-red">${{ pedido.total.toLocaleString('es-AR') }}</span>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Usuarios registrados (solo administrador) -->
+    <div v-if="esMaster" class="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+      <div class="p-6 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+        <h2 class="text-lg font-black text-slate-900">Usuarios Registrados</h2>
+        <span class="text-xs font-bold text-slate-500">{{ usuarios.length }} en total</span>
+      </div>
+
+      <div v-if="usuarios.length === 0" class="py-16 text-center">
+        <span class="text-4xl block mb-2">👥</span>
+        <p class="text-slate-400 font-bold text-sm">Todavía no hay usuarios registrados.</p>
+      </div>
+
+      <div v-else class="divide-y divide-slate-100">
+        <div
+          v-for="u in usuarios"
+          :key="u.uid"
+          class="p-4 flex items-center justify-between gap-4"
+        >
+          <div>
+            <p class="font-black text-xs text-slate-900">{{ u.nombre }}</p>
+            <p class="text-[11px] text-slate-500 font-bold">{{ u.email }}</p>
+          </div>
+          <span
+            class="text-[10px] font-black px-2.5 py-1 rounded-full border"
+            :class="u.rol === 'master'
+              ? 'bg-amber-50 text-amber-800 border-amber-200'
+              : u.rol === 'vendedora'
+                ? 'bg-sky-50 text-sky-800 border-sky-200'
+                : 'bg-slate-100 text-slate-600 border-slate-200'"
+          >
+            {{ etiquetaRol(u.rol) }}
+          </span>
         </div>
       </div>
     </div>

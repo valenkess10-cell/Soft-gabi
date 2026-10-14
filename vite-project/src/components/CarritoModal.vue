@@ -1,4 +1,6 @@
 <script setup>
+import { resolverImagenUrl } from '../data/catalogo.js'
+
 defineProps({
   mostrar: Boolean,
   items: Array,
@@ -35,7 +37,15 @@ defineEmits(['cerrar', 'eliminar', 'finalizar'])
         class="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-200 shadow-xs"
       >
         <div class="flex items-center gap-2.5">
-          <img :src="item.img" :alt="item.nombre" class="w-12 h-12 rounded-xl object-cover" />
+          <img
+            v-if="resolverImagenUrl(item)"
+            :src="resolverImagenUrl(item)"
+            :alt="item.nombre"
+            class="w-12 h-12 rounded-xl object-cover"
+          />
+          <div v-else class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center text-xl shrink-0">
+            {{ item.emoji || '🍽️' }}
+          </div>
           <div>
             <h4 class="font-black text-xs text-slate-900 leading-tight">{{ item.nombre }}</h4>
             <p class="text-[11px] text-slate-500 font-bold mt-0.5">Cant: {{ item.cantidad }}</p>

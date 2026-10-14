@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { useCantina } from '../composables/useCantina.js'
 
 defineProps({
   mostrar: Boolean
@@ -7,17 +8,26 @@ defineProps({
 
 const emit = defineEmits(['cerrar', 'login-exitoso'])
 
+const { registrar, iniciarSesion } = useCantina()
+
 const esLogin = ref(true)
 const nombre = ref('')
 const email = ref('')
 const password = ref('')
 const mensajeError = ref('')
+const enviando = ref(false)
 
-// Email reservado para la cuenta de la vendedora.
-// Quien se registre o inicie sesión con este correo obtiene acceso al Panel de Ventas.
-const EMAIL_VENDEDORA = 'vendedora@micantina.com'
+const traducirError = (err) => {
+  const codigo = err?.code || ''
+  if (codigo.includes('wrong-password') || codigo.includes('invalid-credential')) return 'Email o contraseña incorrectos'
+  if (codigo.includes('user-not-found')) return 'No existe una cuenta con ese email'
+  if (codigo.includes('email-already-in-use')) return 'El email ya está registrado'
+  if (codigo.includes('weak-password')) return 'La contraseña debe tener al menos 6 caracteres'
+  if (codigo.includes('invalid-email')) return 'El email no es válido'
+  return 'Ocurrió un error. Probá de nuevo.'
+}
 
-const handleSubmit = () => {
+const handleSubmit = async () => {
   mensajeError.value = ''
 
   if (!email.value || !password.value || (!esLogin.value && !nombre.value)) {
@@ -25,37 +35,22 @@ const handleSubmit = () => {
     return
   }
 
-  const usuariosGuardados = JSON.parse(localStorage.getItem('schoolbite_users_db') || '[]')
-
-  if (esLogin.value) {
-    // Proceso de Login
-    const usuarioEncontrado = usuariosGuardados.find(u => u.email === email.value && u.password === password.value)
-    if (!usuarioEncontrado) {
-      mensajeError.value = 'Email o contraseña incorrectos'
-      return
+  enviando.value = true
+  try {
+    if (esLogin.value) {
+      await iniciarSesion(email.value, password.value)
+    } else {
+      await registrar(nombre.value, email.value, password.value)
     }
-    localStorage.setItem('schoolbite_user', JSON.stringify(usuarioEncontrado))
-    emit('login-exitoso', usuarioEncontrado)
-  } else {
-    // Proceso de Registro
-    const existe = usuariosGuardados.some(u => u.email === email.value)
-    if (existe) {
-      mensajeError.value = 'El email ya está registrado'
-      return
-    }
-
-    const rol = email.value.trim().toLowerCase() === EMAIL_VENDEDORA ? 'vendedora' : 'cliente'
-    const nuevoUsuario = { nombre: nombre.value, email: email.value, password: password.value, rol }
-    usuariosGuardados.push(nuevoUsuario)
-    localStorage.setItem('schoolbite_users_db', JSON.stringify(usuariosGuardados))
-    localStorage.setItem('schoolbite_user', JSON.stringify(nuevoUsuario))
-    emit('login-exitoso', nuevoUsuario)
+    emit('login-exitoso')
+    nombre.value = ''
+    email.value = ''
+    password.value = ''
+  } catch (err) {
+    mensajeError.value = traducirError(err)
+  } finally {
+    enviando.value = false
   }
-
-  // Limpiar formulario
-  nombre.value = ''
-  email.value = ''
-  password.value = ''
 }
 </script>
 
@@ -69,37 +64,37 @@ const handleSubmit = () => {
       <div class="text-center mb-6">
         <h3 class="text-2xl font-black text-slate-900">{{ esLogin ? 'Iniciá Sesión' : 'Creá tu Cuenta' }}</h3>
         <p class="text-xs text-slate-500 mt-1">
-          {{ esLogin ? 'Ingresá a tu cuenta de SchoolBite' : 'Registrate para hacer pedidos más rápido' }}
+          {{ esLogin ? 'Ingresá a tu cuenta de MiCantina' : 'Registrate para hacer pedidos más rápido' }}
         </p>
       </div>
 
       <form @submit.prevent="handleSubmit" class="space-y-4">
         <div v-if="!esLogin">
           <label class="block text-xs font-bold text-slate-700 mb-1">Nombre Completo</label>
-          <input 
-            v-model="nombre" 
-            type="text" 
-            placeholder="Ej: Valentin Kessler" 
+          <input
+            v-model="nombre"
+            type="text"
+            placeholder="Ej: Valentin Kessler"
             class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sb-red"
           />
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico</label>
-          <input 
-            v-model="email" 
-            type="email" 
-            placeholder="tu@email.com" 
+          <input
+            v-model="email"
+            type="email"
+            placeholder="tu@email.com"
             class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sb-red"
           />
         </div>
 
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Contraseña</label>
-          <input 
-            v-model="password" 
-            type="password" 
-            placeholder="••••••••" 
+          <input
+            v-model="password"
+            type="password"
+            placeholder="••••••••"
             class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sb-red"
           />
         </div>
@@ -108,17 +103,18 @@ const handleSubmit = () => {
           {{ mensajeError }}
         </p>
 
-        <button 
-          type="submit" 
-          class="w-full bg-sb-red hover:bg-red-700 text-white font-black py-3 rounded-xl text-sm shadow-md transition-all active:scale-95"
+        <button
+          type="submit"
+          :disabled="enviando"
+          class="w-full bg-sb-red hover:bg-red-700 text-white font-black py-3 rounded-xl text-sm shadow-md transition-all active:scale-95 disabled:opacity-50"
         >
-          {{ esLogin ? 'Entrar' : 'Registrarme' }}
+          {{ enviando ? 'Un momento...' : (esLogin ? 'Entrar' : 'Registrarme') }}
         </button>
       </form>
 
       <div class="text-center mt-4 pt-4 border-t border-slate-100">
-        <button 
-          @click="esLogin = !esLogin; mensajeError = ''" 
+        <button
+          @click="esLogin = !esLogin; mensajeError = ''"
           class="text-xs font-bold text-slate-600 hover:text-sb-red transition-colors"
         >
           {{ esLogin ? '¿No tenés cuenta? Registrate acá' : '¿Ya tenés cuenta? Iniciá sesión' }}

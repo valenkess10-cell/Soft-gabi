@@ -1,0 +1,19 @@
+{
+  "firestore": {
+    "rules": "soft_gabi/firestore.rules"
+  },
+  "hosting": {
+    "public": "vite-project/dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

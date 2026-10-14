@@ -8,7 +8,15 @@ const props = defineProps({
 
 const emit = defineEmits(['cerrar', 'pago-exitoso'])
 
-const tipoPago = ref('transferencia') // 'transferencia' | 'efectivo'
+// 4 métodos de pago, igual que en la app (metodoPagoLabel de cantina_provider.dart).
+const metodos = [
+  { id: 'transferencia', icono: '📱', nombre: 'Transferencia', etiqueta: 'Transferencia bancaria' },
+  { id: 'mercadopago', icono: '💙', nombre: 'Mercado Pago', etiqueta: 'Mercado Pago' },
+  { id: 'tarjeta', icono: '💳', nombre: 'Tarjeta', etiqueta: 'Tarjeta en caja' },
+  { id: 'efectivo', icono: '💵', nombre: 'Efectivo', etiqueta: 'Efectivo en caja' },
+]
+
+const tipoPago = ref('transferencia')
 const copiado = ref(false)
 const procesando = ref(false)
 
@@ -17,54 +25,50 @@ const alias = 'lata.isae'
 const copiarAlias = () => {
   navigator.clipboard.writeText(alias)
   copiado.value = true
-  setTimeout(() => copiado.value = false, 2000)
+  setTimeout(() => (copiado.value = false), 2000)
 }
 
 const confirmarPago = () => {
   procesando.value = true
   setTimeout(() => {
     procesando.value = false
-    emit('pago-exitoso', tipoPago.value)
-  }, 1200)
+    const metodo = metodos.find((m) => m.id === tipoPago.value)
+    emit('pago-exitoso', metodo.etiqueta)
+  }, 900)
 }
 </script>
 
 <template>
-  <div 
-    v-if="mostrar" 
+  <div
+    v-if="mostrar"
     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity"
   >
     <div class="bg-white rounded-3xl max-w-md w-full p-6 border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-      
+
       <!-- Header -->
       <div class="flex justify-between items-center pb-4 border-b border-slate-100">
         <div class="flex items-center gap-2">
           <span class="text-xl">💳</span>
           <h3 class="text-lg font-black text-slate-900">Abonar Pedido</h3>
         </div>
-        <button 
-          @click="$emit('cerrar')" 
+        <button
+          @click="$emit('cerrar')"
           class="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-black text-xs flex items-center justify-center transition-colors cursor-pointer"
         >
           ✕
         </button>
       </div>
 
-      <!-- Selector de modalidad (Transferencia o Efectivo) -->
+      <!-- Selector de modalidad (4 métodos) -->
       <div class="grid grid-cols-2 gap-2 my-4 bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-        <button 
-          @click="tipoPago = 'transferencia'"
+        <button
+          v-for="m in metodos"
+          :key="m.id"
+          @click="tipoPago = m.id"
           class="py-2 rounded-xl text-xs font-black transition-all cursor-pointer"
-          :class="tipoPago === 'transferencia' ? 'bg-sb-red text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+          :class="tipoPago === m.id ? 'bg-sb-red text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'"
         >
-          📱 Transferencia / QR
-        </button>
-        <button 
-          @click="tipoPago = 'efectivo'"
-          class="py-2 rounded-xl text-xs font-black transition-all cursor-pointer"
-          :class="tipoPago === 'efectivo' ? 'bg-sb-red text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'"
-        >
-          💵 Efectivo en Caja
+          {{ m.icono }} {{ m.nombre }}
         </button>
       </div>
 
@@ -74,31 +78,63 @@ const confirmarPago = () => {
         <span class="text-3xl font-black text-sb-red">${{ total.toLocaleString('es-AR') }}</span>
       </div>
 
-      <!-- DETALLE: TRANSFERENCIA / QR -->
+      <!-- DETALLE: TRANSFERENCIA -->
       <div v-if="tipoPago === 'transferencia'" class="space-y-4">
-        <!-- Código QR generado dinámicamente con el Alias y Monto -->
         <div class="flex flex-col items-center justify-center bg-slate-50 p-4 rounded-2xl border border-slate-200">
-          <img 
-            :src="`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=Alias:${alias}_Monto:${total}`" 
-            alt="Código QR de Pago" 
+          <img
+            :src="`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=Alias:${alias}_Monto:${total}`"
+            alt="Código QR de Pago"
             class="w-40 h-40 rounded-xl border border-slate-200 shadow-sm"
           />
-          <p class="text-[11px] font-bold text-slate-500 mt-2">Escaneá desde Mercado Pago, Naranja X o tu banco</p>
+          <p class="text-[11px] font-bold text-slate-500 mt-2">Escaneá desde tu banco o app de pagos</p>
         </div>
 
-        <!-- Copiar Alias -->
         <div class="bg-slate-100 p-3.5 rounded-2xl border border-slate-200 flex items-center justify-between">
           <div>
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Alias Mercado Pago / CBU</span>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Alias / CBU</span>
             <span class="text-base font-black text-slate-900">{{ alias }}</span>
           </div>
-          <button 
+          <button
             @click="copiarAlias"
             class="bg-slate-900 hover:bg-slate-800 active:scale-95 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all cursor-pointer"
           >
             {{ copiado ? '¡Copiado! ✓' : 'Copiar' }}
           </button>
         </div>
+      </div>
+
+      <!-- DETALLE: MERCADO PAGO -->
+      <div v-else-if="tipoPago === 'mercadopago'" class="space-y-4">
+        <div class="flex flex-col items-center justify-center bg-sky-50 p-4 rounded-2xl border border-sky-200">
+          <img
+            :src="`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=MercadoPago:${alias}_Monto:${total}`"
+            alt="Código QR de Mercado Pago"
+            class="w-40 h-40 rounded-xl border border-sky-200 shadow-sm"
+          />
+          <p class="text-[11px] font-bold text-sky-700 mt-2">Escaneá desde la app de Mercado Pago</p>
+        </div>
+        <div class="bg-sky-100 p-3.5 rounded-2xl border border-sky-200 flex items-center justify-between">
+          <div>
+            <span class="text-[10px] font-bold text-sky-500 uppercase tracking-wider block">Alias Mercado Pago</span>
+            <span class="text-base font-black text-sky-950">{{ alias }}</span>
+          </div>
+          <button
+            @click="copiarAlias"
+            class="bg-sky-600 hover:bg-sky-700 active:scale-95 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all cursor-pointer"
+          >
+            {{ copiado ? '¡Copiado! ✓' : 'Copiar' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- DETALLE: TARJETA -->
+      <div v-else-if="tipoPago === 'tarjeta'" class="bg-indigo-50 border border-indigo-200 rounded-2xl p-5 text-center space-y-2">
+        <span class="text-3xl">💳</span>
+        <h4 class="text-sm font-black text-indigo-900">Pago con Tarjeta</h4>
+        <p class="text-xs text-indigo-800 font-medium">
+          Pagás con débito o crédito en la caja al retirar tu pedido, por
+          <strong class="font-black text-indigo-950">${{ total.toLocaleString('es-AR') }}</strong>.
+        </p>
       </div>
 
       <!-- DETALLE: EFECTIVO -->
@@ -111,13 +147,13 @@ const confirmarPago = () => {
       </div>
 
       <!-- Botón de Confirmación -->
-      <button 
+      <button
         @click="confirmarPago"
         :disabled="procesando"
         class="w-full mt-5 bg-sb-red hover:bg-red-700 active:scale-95 text-white font-black py-3.5 rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
       >
         <span v-if="procesando" class="animate-spin text-sm">🌀</span>
-        <span>{{ procesando ? 'Registrando Pedido...' : (tipoPago === 'transferencia' ? 'Ya Transferí / Enviar Pedido' : 'Confirmar Pedido en Efectivo') }}</span>
+        <span>{{ procesando ? 'Registrando Pedido...' : 'Confirmar Pedido' }}</span>
       </button>
 
     </div>
