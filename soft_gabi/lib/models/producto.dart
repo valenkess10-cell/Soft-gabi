@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -35,6 +38,21 @@ class Producto {
   /// (así no hace falta configurar Firebase Storage aparte). Si está
   /// presente, tiene prioridad sobre [imagen] y [emoji] al mostrar la foto.
   final String? imagenBase64;
+
+  /// Decodifica [imagenBase64] a bytes para mostrarla con Image.memory. Si el
+  /// texto guardado no es un base64 válido (por ejemplo, un dato corrupto o
+  /// incompleto que llegó mal desde la web), devuelve null en vez de tirar
+  /// una excepción, así la tarjeta cae sola al emoji/ícono de respaldo en
+  /// lugar de romperse o quedar en blanco.
+  Uint8List? get bytesFoto {
+    final valor = imagenBase64;
+    if (valor == null || valor.isEmpty) return null;
+    try {
+      return base64Decode(valor);
+    } catch (_) {
+      return null;
+    }
+  }
 
   final String emoji;
 
@@ -114,15 +132,23 @@ class Producto {
     final j = doc.data()!;
     return Producto(
       id: doc.id,
-      nombre: j['nombre'] as String,
+      nombre: j['nombre'] as String? ?? '',
       descripcion: j['descripcion'] as String? ?? '',
-      precio: j['precio'] as int,
+      // Firestore puede guardar el precio como entero o como decimal según
+      // cómo lo haya escrito cada plataforma (la web, por ejemplo, siempre
+      // manda un Number de JS). Un "as int" directo tira una excepción si
+      // llega como double, y como este factory se usa adentro de un
+      // snapshot.map(), ese error rompe la actualización de TODA la lista
+      // de productos (no solo la de ese producto), dejando el catálogo
+      // desactualizado en el celular hasta que se reinicia la app. Por eso
+      // se castea pasando por `num` primero.
+      precio: (j['precio'] as num?)?.toInt() ?? 0,
       imagen: j['imagen'] as String?,
       imagenBase64: j['imagenBase64'] as String?,
       emoji: j['emoji'] as String? ?? '🍽️',
       tag: j['tag'] as String? ?? '',
-      tiempo: j['tiempo'] as int? ?? 5,
-      categoria: j['categoria'] as String,
+      tiempo: (j['tiempo'] as num?)?.toInt() ?? 5,
+      categoria: j['categoria'] as String? ?? 'platos',
       categoriaLabel: j['categoriaLabel'] as String? ?? '',
       destacado: j['destacado'] as bool? ?? false,
       esSinTacc: j['esSinTacc'] as bool? ?? false,

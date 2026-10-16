@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 
 import '../providers/cantina_scope.dart';
@@ -114,10 +112,17 @@ class CarritoScreen extends StatelessWidget {
                         child: SizedBox(
                           width: 52,
                           height: 52,
-                          child: item.producto.imagenBase64 != null
+                          child: item.producto.bytesFoto != null
                               ? Image.memory(
-                                  base64Decode(item.producto.imagenBase64!),
+                                  item.producto.bytesFoto!,
                                   fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => ColoredBox(
+                                    color: Colors.grey.shade100,
+                                    child: Center(
+                                      child: Text(item.producto.emoji,
+                                          style: const TextStyle(fontSize: 24)),
+                                    ),
+                                  ),
                                 )
                               : item.producto.imagen != null
                                   ? Image.asset(

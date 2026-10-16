@@ -64,8 +64,7 @@ class _ProductoAdminTile extends StatelessWidget {
 
   const _ProductoAdminTile({required this.producto});
 
-  Uint8List? get _bytesFoto =>
-      producto.imagenBase64 != null ? base64Decode(producto.imagenBase64!) : null;
+  Uint8List? get _bytesFoto => producto.bytesFoto;
 
   Future<void> _confirmarEliminar(BuildContext context) async {
     final confirmar = await showDialog<bool>(
@@ -111,7 +110,16 @@ class _ProductoAdminTile extends StatelessWidget {
             width: 52,
             height: 52,
             child: bytes != null
-                ? Image.memory(bytes, fit: BoxFit.cover)
+                ? Image.memory(
+                    bytes,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => ColoredBox(
+                      color: Colors.grey.shade100,
+                      child: Center(
+                        child: Text(producto.emoji, style: const TextStyle(fontSize: 24)),
+                      ),
+                    ),
+                  )
                 : producto.imagen != null
                     ? Image.asset(producto.imagen!, fit: BoxFit.cover)
                     : ColoredBox(
@@ -301,11 +309,10 @@ class _FormularioProductoState extends State<_FormularioProducto> {
       );
     }
     final existente = widget.producto;
-    if (!_fotoBorrada && existente?.imagenBase64 != null) {
+    if (!_fotoBorrada && existente?.bytesFoto != null) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(14),
-        child: Image.memory(base64Decode(existente!.imagenBase64!),
-            width: 90, height: 90, fit: BoxFit.cover),
+        child: Image.memory(existente!.bytesFoto!, width: 90, height: 90, fit: BoxFit.cover),
       );
     }
     if (!_fotoBorrada && existente?.imagen != null) {

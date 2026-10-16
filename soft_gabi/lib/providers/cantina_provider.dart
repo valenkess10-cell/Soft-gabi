@@ -100,7 +100,19 @@ class CantinaProvider extends ChangeNotifier {
 
   void _escucharProductos() {
     _subProductos = _colProductos.snapshots().listen((snap) {
-      _productos = snap.docs.map(Producto.deDocumento).toList();
+      // Se parsea documento por documento (en vez de un solo
+      // snap.docs.map(...).toList()) para que, si alguno viene con un dato
+      // raro, se lo salte en vez de tirar abajo la actualización de TODA la
+      // lista de productos y dejar el menú desactualizado en el celular.
+      final productos = <Producto>[];
+      for (final doc in snap.docs) {
+        try {
+          productos.add(Producto.deDocumento(doc));
+        } catch (e) {
+          debugPrint('No se pudo leer el producto ${doc.id}: $e');
+        }
+      }
+      _productos = productos;
       notifyListeners();
     });
   }

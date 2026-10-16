@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 
 import '../models/producto.dart';
@@ -50,8 +48,17 @@ class ProductoCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    producto.imagenBase64 != null
-                        ? Image.memory(base64Decode(producto.imagenBase64!), fit: BoxFit.cover)
+                    producto.bytesFoto != null
+                        ? Image.memory(
+                            producto.bytesFoto!,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => ColoredBox(
+                              color: Colors.grey.shade100,
+                              child: Center(
+                                child: Text(producto.emoji, style: const TextStyle(fontSize: 40)),
+                              ),
+                            ),
+                          )
                         : producto.imagen != null
                             ? Image.asset(producto.imagen!, fit: BoxFit.cover, cacheWidth: 300)
                             : ColoredBox(
