@@ -124,6 +124,7 @@ async function guardar() {
     limpiarFormulario()
   } catch (err) {
     mensajeError.value = 'No se pudo guardar. Probá de nuevo.'
+    console.error('Error al guardar producto:', err)
   } finally {
     guardando.value = false
   }
@@ -131,8 +132,13 @@ async function guardar() {
 
 async function borrar(producto) {
   if (!confirm(`¿Eliminar "${producto.nombre}"? Esta acción no se puede deshacer.`)) return
-  await eliminarProducto(producto.id)
-  if (editandoId.value === producto.id) limpiarFormulario()
+  try {
+    await eliminarProducto(producto.id)
+    if (editandoId.value === producto.id) limpiarFormulario()
+  } catch (err) {
+    mensajeError.value = 'No se pudo borrar. Probá de nuevo.'
+    console.error('Error al borrar producto:', err)
+  }
 }
 </script>
 
@@ -150,7 +156,7 @@ async function borrar(producto) {
         </button>
       </div>
 
-      <div class="flex-1 overflow-y-auto p-5 grid md:grid-cols-[320px_1fr] gap-6">
+      <div class="flex-1 overflow-y-auto overflow-x-hidden p-5 grid md:grid-cols-[320px_minmax(0,1fr)] gap-6">
 
         <!-- Formulario (alta / edición) -->
         <div class="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 h-fit">
@@ -214,7 +220,7 @@ async function borrar(producto) {
         </div>
 
         <!-- Listado de productos existentes -->
-        <div>
+        <div class="min-w-0">
           <div class="flex items-center gap-2 mb-3 overflow-x-auto pb-1">
             <button
               @click="filtroCategoria = 'todos'"
@@ -238,22 +244,24 @@ async function borrar(producto) {
             <div
               v-for="p in productosFiltrados"
               :key="p.id"
-              class="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-2xl"
+              class="flex flex-wrap items-center gap-3 p-3 bg-white border border-slate-200 rounded-2xl"
             >
               <div class="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
                 <img v-if="resolverImagenUrl(p)" :src="resolverImagenUrl(p)" class="w-full h-full object-cover" />
                 <component :is="iconoDeEmoji(p.emoji)" v-else :size="20" class="text-slate-400" />
               </div>
-              <div class="flex-1 min-w-0">
+              <div class="flex-1 min-w-[120px]">
                 <p class="font-black text-xs text-slate-900 truncate">{{ p.nombre }}</p>
                 <p class="text-[11px] text-slate-500 font-bold">{{ p.categoriaLabel }} · ${{ p.precio.toLocaleString('es-AR') }}</p>
               </div>
-              <button @click="editar(p)" class="text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors">
-                Editar
-              </button>
-              <button @click="borrar(p)" class="text-[11px] font-bold bg-red-100 hover:bg-red-200 text-sb-red px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors">
-                Borrar
-              </button>
+              <div class="flex items-center gap-2 shrink-0 ml-auto">
+                <button @click="editar(p)" class="text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors whitespace-nowrap">
+                  Editar
+                </button>
+                <button @click="borrar(p)" class="text-[11px] font-bold bg-red-100 hover:bg-red-200 text-sb-red px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors whitespace-nowrap">
+                  Borrar
+                </button>
+              </div>
             </div>
 
             <div v-if="productosFiltrados.length === 0" class="text-center py-10 text-slate-400 text-sm font-bold">
