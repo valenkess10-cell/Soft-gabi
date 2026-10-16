@@ -16,6 +16,7 @@ const editandoId = ref(null) // null = formulario de "nuevo"
 const nombre = ref('')
 const descripcion = ref('')
 const precio = ref('')
+const stock = ref('') // vacío = sin límite (stock: null en Firestore)
 const categoria = ref('platos')
 const previewImagen = ref(null) // data URL para mostrar
 const imagenBase64 = ref(null) // string sin el prefijo data:, lo que se guarda en Firestore
@@ -33,6 +34,7 @@ function limpiarFormulario() {
   nombre.value = ''
   descripcion.value = ''
   precio.value = ''
+  stock.value = ''
   categoria.value = 'platos'
   previewImagen.value = null
   imagenBase64.value = null
@@ -44,10 +46,32 @@ function editar(producto) {
   nombre.value = producto.nombre
   descripcion.value = producto.descripcion
   precio.value = producto.precio
+  stock.value = producto.stock === null || producto.stock === undefined ? '' : producto.stock
   categoria.value = producto.categoria
   previewImagen.value = resolverImagenUrl(producto)
   imagenBase64.value = producto.imagenBase64 || null
   mensajeError.value = ''
+}
+
+// Ajustes rápidos de stock directo desde el listado, sin abrir el formulario.
+async function cambiarStock(producto, delta) {
+  const actual = producto.stock ?? 0
+  const nuevo = Math.max(0, actual + delta)
+  try {
+    await editarProducto(producto.id, { stock: nuevo })
+  } catch (err) {
+    console.error('Error al actualizar stock:', err)
+  }
+}
+
+async function fijarStockDesdeInput(producto, evento) {
+  const valor = evento.target.value
+  const nuevo = valor === '' ? null : Math.max(0, Math.trunc(Number(valor)))
+  try {
+    await editarProducto(producto.id, { stock: nuevo })
+  } catch (err) {
+    console.error('Error al actualizar stock:', err)
+  }
 }
 
 // Comprime la foto elegida con un <canvas> y la convierte a base64, para
@@ -99,6 +123,7 @@ async function guardar() {
   }
 
   const catInfo = categorias.find((c) => c.id === categoria.value)
+  const stockValor = stock.value === '' ? null : Math.max(0, Math.trunc(Number(stock.value)))
   guardando.value = true
   try {
     if (editandoId.value) {
@@ -110,6 +135,7 @@ async function guardar() {
         categoriaLabel: catInfo?.nombre ?? categoria.value,
         imagenBase64: imagenBase64.value,
         tiempo: categoriasDeKiosco.has(categoria.value) ? 1 : 10,
+        stock: stockValor,
       })
     } else {
       await agregarProducto({
@@ -119,6 +145,7 @@ async function guardar() {
         categoria: categoria.value,
         categoriaLabel: catInfo?.nombre ?? categoria.value,
         imagenBase64: imagenBase64.value,
+        stock: stockValor,
       })
     }
     limpiarFormulario()
@@ -203,6 +230,12 @@ async function borrar(producto) {
             </div>
           </div>
 
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Stock</label>
+            <input v-model="stock" type="number" min="0" placeholder="Sin límite" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sb-red" />
+            <p class="text-[11px] text-slate-400 font-medium mt-1">Dejalo vacío para no controlar el stock. En 0 el producto se oculta del menú solo.</p>
+          </div>
+
           <p v-if="mensajeError" class="text-xs font-bold text-sb-red">{{ mensajeError }}</p>
 
           <div class="flex gap-2 pt-1">
@@ -253,7 +286,46 @@ async function borrar(producto) {
               <div class="flex-1 min-w-[120px]">
                 <p class="font-black text-xs text-slate-900 truncate">{{ p.nombre }}</p>
                 <p class="text-[11px] text-slate-500 font-bold">{{ p.categoriaLabel }} · ${{ p.precio.toLocaleString('es-AR') }}</p>
+                <span
+                  v-if="p.stock === 0"
+                  class="inline-block mt-1 text-[10px] font-black text-sb-red bg-red-50 border border-red-200 px-2 py-0.5 rounded-full"
+                >
+                  Agotado · oculto del menú
+                </span>
+                <span
+                  v-else-if="typeof p.stock === 'number'"
+                  class="inline-block mt-1 text-[10px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full"
+                >
+                  Stock: {{ p.stock }}
+                </span>
               </div>
+
+              <div class="flex items-center gap-1 shrink-0">
+                <button
+                  @click="cambiarStock(p, -1)"
+                  class="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-sm font-black cursor-pointer"
+                  title="Restar stock"
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min="0"
+                  :value="p.stock"
+                  @change="fijarStockDesdeInput(p, $event)"
+                  placeholder="∞"
+                  title="Stock (vacío = sin límite)"
+                  class="w-14 text-center text-xs font-bold border border-slate-200 rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-sb-red"
+                />
+                <button
+                  @click="cambiarStock(p, 1)"
+                  class="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center text-sm font-black cursor-pointer"
+                  title="Sumar stock"
+                >
+                  +
+                </button>
+              </div>
+
               <div class="flex items-center gap-2 shrink-0 ml-auto">
                 <button @click="editar(p)" class="text-[11px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-lg cursor-pointer transition-colors whitespace-nowrap">
                   Editar

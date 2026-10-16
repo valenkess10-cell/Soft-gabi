@@ -54,7 +54,7 @@ export const productosSemilla = [
   { id: '31', nombre: 'Fanta', descripcion: 'Gaseosa sabor naranja.', precio: 1700, emoji: '🥤', tag: 'Frío', tiempo: 1, categoria: 'bebidas', categoriaLabel: 'Bebidas' },
   { id: '32', nombre: 'Agua', descripcion: 'Agua mineral bien fría.', precio: 1200, emoji: '💧', tag: 'Frío', tiempo: 1, categoria: 'bebidas', categoriaLabel: 'Bebidas' },
   { id: '33', nombre: 'Jugo', descripcion: 'Jugo o bebida saborizada, sabor a elección.', precio: 1500, emoji: '🧃', tag: 'Frío', tiempo: 1, categoria: 'bebidas', categoriaLabel: 'Bebidas' },
-].map((p) => ({ destacado: false, esSinTacc: false, imagen: null, imagenBase64: null, emoji: '🍽️', ...p }))
+].map((p) => ({ destacado: false, esSinTacc: false, imagen: null, imagenBase64: null, emoji: '🍽️', stock: null, ...p }))
 
 // Convierte un path de asset de Flutter ('assets/images/pizza.jpg') al
 // archivo equivalente servido desde /public en la web ('/pizza.jpg'). Los 7

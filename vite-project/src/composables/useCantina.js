@@ -52,6 +52,28 @@ let desuscribirPedidos = null
 let desuscribirUsuarios = null
 let sembradoIntentado = false
 
+// ============ RELOJ / CORTE DE ALMUERZO ============
+// Las categorías que no son "de kiosco" (platos, pizzas, empanadas, pastas,
+// tartas) son el almuerzo: se dejan de pedir a partir de las 11:30 de cada
+// día, hora del navegador de quien mira la página.
+const HORA_CORTE_ALMUERZO = { horas: 11, minutos: 30 }
+const ahora = ref(new Date())
+let intervaloReloj = null
+function _iniciarReloj() {
+  if (intervaloReloj) return
+  intervaloReloj = setInterval(() => { ahora.value = new Date() }, 30000)
+}
+
+const almuerzoCerrado = computed(() => {
+  const h = ahora.value.getHours()
+  const m = ahora.value.getMinutes()
+  return h > HORA_CORTE_ALMUERZO.horas || (h === HORA_CORTE_ALMUERZO.horas && m >= HORA_CORTE_ALMUERZO.minutos)
+})
+
+function esAlmuerzo(categoriaId) {
+  return !categoriasDeKiosco.has(categoriaId)
+}
+
 // ============ CATÁLOGO ============
 const categoriasMenu = computed(() => ([
   { id: 'todos', nombre: 'Todos', icono: '⭐', bg: 'bg-slate-100', border: 'border-slate-300', ring: 'ring-slate-400' },
@@ -60,17 +82,26 @@ const categoriasMenu = computed(() => ([
 
 const todosLosProductos = computed(() => (productos.value.length ? productos.value : productosSemilla))
 
+// stock null/undefined = sin límite (siempre disponible); stock 0 = agotado,
+// se oculta de las vistas de cliente sin que la vendedora tenga que borrarlo.
+function tieneStock(p) {
+  return p.stock === null || p.stock === undefined || p.stock > 0
+}
+
+// Lo que ve cualquier cliente: sin los productos agotados.
+const productosVisibles = computed(() => todosLosProductos.value.filter(tieneStock))
+
 const productosFiltrados = computed(() => {
-  if (categoriaActiva.value === 'todos') return todosLosProductos.value
-  if (categoriaActiva.value === 'sin-tacc') return todosLosProductos.value.filter((p) => p.esSinTacc)
-  return todosLosProductos.value.filter((p) => p.categoria === categoriaActiva.value)
+  if (categoriaActiva.value === 'todos') return productosVisibles.value
+  if (categoriaActiva.value === 'sin-tacc') return productosVisibles.value.filter((p) => p.esSinTacc)
+  return productosVisibles.value.filter((p) => p.categoria === categoriaActiva.value)
 })
 
 function productosDeCategoria(catId) {
-  return todosLosProductos.value.filter((p) => p.categoria === catId)
+  return productosVisibles.value.filter((p) => p.categoria === catId)
 }
 
-const destacados = computed(() => todosLosProductos.value.filter((p) => p.destacado))
+const destacados = computed(() => productosVisibles.value.filter((p) => p.destacado))
 
 const esVendedora = computed(() => usuario.value?.rol === 'vendedora')
 const esMaster = computed(() => usuario.value?.rol === 'master')
@@ -85,6 +116,7 @@ const etiquetaRol = computed(() => {
 // ============ CARGA / LISTENERS ============
 function cargar() {
   if (listo.value) return
+  _iniciarReloj()
   onAuthStateChanged(auth, async (fbUser) => {
     if (!fbUser) {
       // Sin nadie logueado: iniciamos sesión anónima para poder leer el
@@ -132,6 +164,7 @@ function _productoDeDocumento(id, data) {
     categoriaLabel: data.categoriaLabel ?? '',
     destacado: data.destacado ?? false,
     esSinTacc: data.esSinTacc ?? false,
+    stock: data.stock === undefined ? null : data.stock,
   }
 }
 
@@ -313,7 +346,7 @@ async function calificarPedido(pedidoId, calificacion, comentario) {
 // de "me pasaron explícitamente null", igual que en producto.dart.
 export const sinCambioImagen = Symbol('sinCambioImagen')
 
-async function agregarProducto({ nombre, descripcion, precio, categoria, categoriaLabel, imagenBase64, emoji, tiempo, esSinTacc }) {
+async function agregarProducto({ nombre, descripcion, precio, categoria, categoriaLabel, imagenBase64, emoji, tiempo, esSinTacc, stock }) {
   const refNuevo = doc(collection(db, 'productos'))
   await setDoc(refNuevo, {
     nombre,
@@ -328,6 +361,7 @@ async function agregarProducto({ nombre, descripcion, precio, categoria, categor
     categoriaLabel: categoriaLabel ?? categoria,
     destacado: false,
     esSinTacc: esSinTacc ?? false,
+    stock: stock ?? null,
   })
 }
 
@@ -357,6 +391,7 @@ export function useCantina() {
     categoriasDeKiosco,
     // getters
     todosLosProductos,
+    productosVisibles,
     productosFiltrados,
     productosDeCategoria,
     destacados,
@@ -366,6 +401,10 @@ export function useCantina() {
     etiquetaRol,
     cantidadTotal,
     totalCarrito,
+    ahora,
+    almuerzoCerrado,
+    esAlmuerzo,
+    tieneStock,
     // acciones
     cargar,
     registrar,
