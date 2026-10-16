@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { CreditCard, X, Smartphone, Wallet, Banknote, Store, Loader2 } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -20,8 +20,15 @@ const metodos = [
 const tipoPago = ref('transferencia')
 const copiado = ref(false)
 const procesando = ref(false)
+const pagaCon = ref('')
+const errorEfectivo = ref('')
 
 const alias = 'lata.isae'
+
+watch(tipoPago, () => { errorEfectivo.value = '' })
+watch(() => props.mostrar, (abierto) => {
+  if (abierto) { pagaCon.value = ''; errorEfectivo.value = '' }
+})
 
 const copiarAlias = () => {
   navigator.clipboard.writeText(alias)
@@ -29,12 +36,34 @@ const copiarAlias = () => {
   setTimeout(() => (copiado.value = false), 2000)
 }
 
+const vuelto = computed(() => {
+  const valor = Number(pagaCon.value)
+  if (!pagaCon.value || Number.isNaN(valor)) return null
+  return valor - props.total
+})
+
 const confirmarPago = () => {
+  errorEfectivo.value = ''
+
+  if (tipoPago.value === 'efectivo') {
+    const valor = Number(pagaCon.value)
+    if (!pagaCon.value || Number.isNaN(valor) || valor < props.total) {
+      errorEfectivo.value = `Poné con cuánto efectivo pagás (mínimo $${props.total.toLocaleString('es-AR')})`
+      return
+    }
+  }
+
   procesando.value = true
   setTimeout(() => {
     procesando.value = false
     const metodo = metodos.find((m) => m.id === tipoPago.value)
-    emit('pago-exitoso', metodo.etiqueta)
+    if (tipoPago.value === 'efectivo') {
+      const valor = Number(pagaCon.value)
+      emit('pago-exitoso', metodo.etiqueta, { pagaCon: valor, vuelto: valor - props.total })
+      pagaCon.value = ''
+    } else {
+      emit('pago-exitoso', metodo.etiqueta, null)
+    }
   }, 900)
 }
 </script>
@@ -139,12 +168,27 @@ const confirmarPago = () => {
       </div>
 
       <!-- DETALLE: EFECTIVO -->
-      <div v-else class="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center space-y-2">
+      <div v-else class="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center space-y-3">
         <Store :size="32" class="text-amber-600 mx-auto" />
         <h4 class="text-sm font-black text-amber-900">Pago en Mostrador</h4>
         <p class="text-xs text-amber-800 font-medium">
-          Abonás los <strong class="font-black text-amber-950">${{ total.toLocaleString('es-AR') }}</strong> en efectivo directamente al retirar tu pedido en la cantina.
+          Abonás los <strong class="font-black text-amber-950">${{ total.toLocaleString('es-AR') }}</strong> en efectivo al retirar tu pedido.
         </p>
+
+        <div class="text-left pt-1">
+          <label class="block text-xs font-bold text-amber-900 mb-1">¿Con cuánto efectivo pagás?</label>
+          <input
+            v-model="pagaCon"
+            type="number"
+            min="0"
+            :placeholder="`Ej: ${total.toLocaleString('es-AR')}`"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-amber-300 bg-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-sb-red"
+          />
+          <p v-if="vuelto !== null && vuelto >= 0" class="text-xs font-bold text-amber-800 mt-1.5">
+            Te llevás <strong class="font-black text-amber-950">${{ vuelto.toLocaleString('es-AR') }}</strong> de vuelto
+          </p>
+          <p v-if="errorEfectivo" class="text-xs font-bold text-sb-red mt-1.5">{{ errorEfectivo }}</p>
+        </div>
       </div>
 
       <!-- Botón de Confirmación -->

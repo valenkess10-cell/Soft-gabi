@@ -129,6 +129,9 @@ const formatearFecha = (fecha) => {
               {{ pedido.metodoPago }}
             </span>
             <span class="text-lg font-black text-sb-red">${{ pedido.total.toLocaleString('es-AR') }}</span>
+            <span v-if="pedido.pagaCon" class="text-[11px] font-bold text-amber-700">
+              Paga con ${{ pedido.pagaCon.toLocaleString('es-AR') }} · Vuelto ${{ pedido.vuelto.toLocaleString('es-AR') }}
+            </span>
           </div>
         </div>
       </div>

@@ -304,7 +304,7 @@ function vaciarCarrito() {
 // ============ PEDIDOS / PAGO ============
 // Usa una transacción para que el número de turno diario sea atómico y
 // correlativo, igual que confirmarPago() en cantina_provider.dart.
-async function confirmarPago(metodoPago) {
+async function confirmarPago(metodoPago, detallePago) {
   const hoy = new Date()
   const fechaStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`
 
@@ -326,6 +326,8 @@ async function confirmarPago(metodoPago) {
       items: carrito.value.map((i) => ({ nombre: i.nombre, cantidad: i.cantidad })),
       total: totalCarrito.value,
       metodoPago,
+      pagaCon: detallePago?.pagaCon ?? null,
+      vuelto: detallePago?.vuelto ?? null,
       calificacion: null,
       comentario: null,
     })

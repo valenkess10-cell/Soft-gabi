@@ -100,8 +100,8 @@ const irAPagar = () => {
   mostrarPago.value = true
 }
 
-const pagoExitoso = async (metodoPagoLabel) => {
-  const numero = await confirmarPago(metodoPagoLabel)
+const pagoExitoso = async (metodoPagoLabel, detallePago) => {
+  const numero = await confirmarPago(metodoPagoLabel, detallePago)
   ultimoNumeroPedido.value = numero
   mostrarPago.value = false
   mostrarTicket.value = true
