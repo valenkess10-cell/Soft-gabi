@@ -12,6 +12,7 @@ defineEmits(['cerrar'])
 
 const { todosLosProductos, categorias, agregarProducto, editarProducto, eliminarProducto, categoriasDeKiosco } = useCantina()
 
+const formularioEl = ref(null) // referencia al bloque del formulario, para hacerle scroll al editar
 const editandoId = ref(null) // null = formulario de "nuevo"
 const nombre = ref('')
 const descripcion = ref('')
@@ -51,6 +52,10 @@ function editar(producto) {
   previewImagen.value = resolverImagenUrl(producto)
   imagenBase64.value = producto.imagenBase64 || null
   mensajeError.value = ''
+
+  // Lleva el formulario a la vista: en el celular queda arriba de la lista,
+  // así no hay que scrollear a mano para encontrarlo.
+  formularioEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 // Ajustes rápidos de stock directo desde el listado, sin abrir el formulario.
@@ -186,7 +191,7 @@ async function borrar(producto) {
       <div class="flex-1 overflow-y-auto overflow-x-hidden p-5 grid md:grid-cols-[320px_minmax(0,1fr)] gap-6">
 
         <!-- Formulario (alta / edición) -->
-        <div class="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 h-fit">
+        <div ref="formularioEl" class="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 h-fit md:sticky md:top-0 scroll-mt-4">
           <h4 class="text-sm font-black text-slate-900">
             {{ editandoId ? 'Editar producto' : 'Agregar producto nuevo' }}
           </h4>
