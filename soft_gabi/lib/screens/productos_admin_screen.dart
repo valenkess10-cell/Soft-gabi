@@ -9,6 +9,7 @@ import '../models/producto.dart';
 import '../providers/cantina_scope.dart';
 import '../theme.dart';
 import '../utils/formato.dart';
+import '../utils/pedidos_util.dart';
 
 /// Panel de productos: la vendedora y la cuenta master pueden agregar,
 /// editar o eliminar cualquier producto del catálogo (incluidos los que
@@ -131,7 +132,12 @@ class _ProductoAdminTile extends StatelessWidget {
           ),
         ),
         title: Text(producto.nombre, style: const TextStyle(fontWeight: FontWeight.w800)),
-        subtitle: Text('${producto.categoriaLabel} · ${pesos(producto.precio)}'),
+        subtitle: Text([
+          '${producto.categoriaLabel} · ${pesos(producto.precio)}',
+          if (producto.calorias != null) '🔥 ${producto.calorias} kcal',
+          if (producto.opciones.isNotEmpty) '${producto.opciones.length} opciones',
+          if (producto.stock == 0) 'AGOTADO',
+        ].join(' · ')),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -163,11 +169,29 @@ class _FormularioProducto extends StatefulWidget {
   State<_FormularioProducto> createState() => _FormularioProductoState();
 }
 
+/// Una fila editable del listado de opciones (extras) del producto.
+class _OpcionEditable {
+  final String id;
+  final TextEditingController nombre;
+  final TextEditingController precio;
+
+  _OpcionEditable(this.id, String nombre, int precio)
+      : nombre = TextEditingController(text: nombre),
+        precio = TextEditingController(text: precio == 0 ? '' : '$precio');
+
+  void dispose() {
+    nombre.dispose();
+    precio.dispose();
+  }
+}
+
 class _FormularioProductoState extends State<_FormularioProducto> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nombreCtrl;
   late final TextEditingController _precioCtrl;
   late final TextEditingController _descripcionCtrl;
+  late final TextEditingController _caloriasCtrl;
+  late final List<_OpcionEditable> _opciones;
   late String _categoriaId;
 
   Uint8List? _fotoNueva; // foto recién elegida, todavía no guardada
@@ -183,14 +207,32 @@ class _FormularioProductoState extends State<_FormularioProducto> {
     _nombreCtrl = TextEditingController(text: p?.nombre ?? '');
     _precioCtrl = TextEditingController(text: p != null ? p.precio.toString() : '');
     _descripcionCtrl = TextEditingController(text: p?.descripcion ?? '');
+    _caloriasCtrl = TextEditingController(text: p?.calorias?.toString() ?? '');
+    _opciones = [
+      for (final o in p?.opciones ?? const <OpcionProducto>[]) _OpcionEditable(o.id, o.nombre, o.precio),
+    ];
     _categoriaId = p?.categoria ?? categorias.first.id;
   }
+
+  List<OpcionProducto> get _opcionesLimpias => [
+        for (final o in _opciones)
+          if (o.nombre.text.trim().isNotEmpty)
+            OpcionProducto(
+              id: o.id,
+              nombre: o.nombre.text.trim(),
+              precio: int.tryParse(o.precio.text.trim()) ?? 0,
+            ),
+      ];
 
   @override
   void dispose() {
     _nombreCtrl.dispose();
     _precioCtrl.dispose();
     _descripcionCtrl.dispose();
+    _caloriasCtrl.dispose();
+    for (final o in _opciones) {
+      o.dispose();
+    }
     super.dispose();
   }
 
@@ -265,6 +307,8 @@ class _FormularioProductoState extends State<_FormularioProducto> {
     final nombre = _nombreCtrl.text;
     final precio = int.parse(_precioCtrl.text.trim());
     final descripcion = _descripcionCtrl.text;
+    final calorias = int.tryParse(_caloriasCtrl.text.trim());
+    final opciones = _opcionesLimpias;
 
     final String? error;
     if (_esEdicion) {
@@ -277,6 +321,8 @@ class _FormularioProductoState extends State<_FormularioProducto> {
         imagenBase64: _fotoNueva != null
             ? base64Encode(_fotoNueva!)
             : (_fotoBorrada ? null : sinCambioImagen),
+        calorias: calorias,
+        opciones: opciones,
       );
     } else {
       error = await cantina.agregarProducto(
@@ -285,6 +331,8 @@ class _FormularioProductoState extends State<_FormularioProducto> {
         categoriaId: _categoriaId,
         descripcion: descripcion,
         imagenBase64: _fotoNueva != null ? base64Encode(_fotoNueva!) : null,
+        calorias: calorias,
+        opciones: opciones,
       );
     }
 
@@ -402,6 +450,65 @@ class _FormularioProductoState extends State<_FormularioProducto> {
                   hintText: 'Si la dejás vacía, se usa el nombre',
                 ),
                 maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _caloriasCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Calorías (opcional)',
+                  suffixText: 'kcal',
+                ),
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  final t = (v ?? '').trim();
+                  if (t.isEmpty) return null;
+                  final n = int.tryParse(t);
+                  return (n == null || n < 0) ? 'Poné un número' : null;
+                },
+              ),
+              const SizedBox(height: 16),
+              const Text('Opciones para personalizar',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              const Text('Ej: "Sin cebolla" \$0, "Extra queso" \$500',
+                  style: TextStyle(fontSize: 12, color: AppColors.gris)),
+              for (final o in _opciones)
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: TextField(
+                        controller: o.nombre,
+                        decoration: const InputDecoration(hintText: 'Opción'),
+                        textCapitalization: TextCapitalization.sentences,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: o.precio,
+                        decoration: const InputDecoration(hintText: '0', prefixText: '+\$ '),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Quitar opción',
+                      icon: const Icon(Icons.close, color: AppColors.rojo),
+                      onPressed: () {
+                        setState(() => _opciones.remove(o));
+                        // Se libera después de que el campo salga de pantalla.
+                        WidgetsBinding.instance.addPostFrameCallback((_) => o.dispose());
+                      },
+                    ),
+                  ],
+                ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => setState(() => _opciones.add(_OpcionEditable(nuevoIdCorto(), '', 0))),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Agregar opción'),
+                ),
               ),
               const SizedBox(height: 20),
               FilledButton(

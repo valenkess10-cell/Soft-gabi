@@ -5,6 +5,16 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../data/catalogo.dart';
 import '../theme.dart';
 import '../utils/formato.dart';
+import '../utils/pedidos_util.dart';
+
+/// Lo que devuelve PagoScreen al confirmar.
+class ResultadoPago {
+  final String metodo; // 'transferencia' | 'mercadopago' | 'tarjeta' | 'efectivo'
+  final String? horaRetiro; // "HH:MM" o null = lo antes posible
+  final int? pagaCon; // solo efectivo
+
+  const ResultadoPago({required this.metodo, this.horaRetiro, this.pagaCon});
+}
 
 class _MetodoPago {
   final String id;
@@ -22,15 +32,13 @@ const _metodos = [
   _MetodoPago('efectivo', '💵', 'Efectivo', Color(0xFFD97706)),
 ];
 
-/// Pantalla de pago. Al confirmar devuelve el id del método elegido
-/// ('transferencia' | 'mercadopago' | 'tarjeta' | 'efectivo') con
-/// Navigator.pop; si el usuario vuelve atrás devuelve null (no se registra nada).
+/// Pantalla de pago. Al confirmar devuelve un [ResultadoPago] (método,
+/// hora de retiro y, en efectivo, con cuánto paga) con Navigator.pop; si el
+/// usuario vuelve atrás devuelve null (no se registra nada).
 ///
-/// NOTA: acá no hay ninguna pasarela real conectada (ni de tarjeta ni de
-/// Mercado Pago): el "pago" se simula con un cartel de carga, igual que ya
-/// pasaba con la transferencia. Para cobrar de verdad hace falta integrar
-/// el SDK de Mercado Pago (o de la procesadora que uses) con sus propias
-/// credenciales del lado del servidor.
+/// Mercado Pago es un cobro real: después de guardar el pedido se abre el
+/// link de pago que arma el servidor (ver carrito_screen.dart y functions/).
+/// El formulario de tarjeta sigue siendo una demo.
 class PagoScreen extends StatefulWidget {
   final int total;
 
@@ -43,6 +51,10 @@ class PagoScreen extends StatefulWidget {
 class _PagoScreenState extends State<PagoScreen> {
   String _tipo = 'transferencia';
   bool _copiado = false;
+  String? _horaRetiro; // null = lo antes posible
+  late final List<String> _horarios = horariosDeRetiro(DateTime.now());
+  final _pagaCon = TextEditingController();
+  String? _errorEfectivo;
 
   // ---- solo para la simulación del formulario de tarjeta ----
   final _formTarjeta = GlobalKey<FormState>();
@@ -57,6 +69,7 @@ class _PagoScreenState extends State<PagoScreen> {
     _nombreTarjeta.dispose();
     _vencimiento.dispose();
     _cvv.dispose();
+    _pagaCon.dispose();
     super.dispose();
   }
 
@@ -70,9 +83,20 @@ class _PagoScreenState extends State<PagoScreen> {
 
   void _confirmar() {
     if (_tipo == 'tarjeta' && !_formTarjeta.currentState!.validate()) return;
+    int? pagaCon;
+    if (_tipo == 'efectivo') {
+      pagaCon = int.tryParse(_pagaCon.text.trim());
+      if (pagaCon == null || pagaCon < widget.total) {
+        setState(() => _errorEfectivo = 'Poné con cuánto pagás (mínimo ${pesos(widget.total)})');
+        return;
+      }
+    }
     // El pedido se guarda de verdad en Firebase recién en la pantalla
     // siguiente (carrito_screen.dart), que ya muestra su propio loading.
-    Navigator.pop(context, _tipo);
+    Navigator.pop(
+      context,
+      ResultadoPago(metodo: _tipo, horaRetiro: _horaRetiro, pagaCon: pagaCon),
+    );
   }
 
   String _textoBoton() => switch (_tipo) {
@@ -127,7 +151,10 @@ class _PagoScreenState extends State<PagoScreen> {
                 for (final m in _metodos) _TarjetaMetodo(
                   metodo: m,
                   seleccionado: _tipo == m.id,
-                  onTap: () => setState(() => _tipo = m.id),
+                  onTap: () => setState(() {
+                    _tipo = m.id;
+                    _errorEfectivo = null;
+                  }),
                 ),
               ],
             ),
@@ -146,8 +173,26 @@ class _PagoScreenState extends State<PagoScreen> {
                   vencimiento: _vencimiento,
                   cvv: _cvv,
                 ),
-              _ => _PanelEfectivo(total: widget.total),
+              _ => _PanelEfectivo(
+                  total: widget.total,
+                  pagaCon: _pagaCon,
+                  error: _errorEfectivo,
+                ),
             },
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String?>(
+              value: _horaRetiro,
+              decoration: const InputDecoration(
+                labelText: '¿A qué hora lo retirás?',
+                prefixIcon: Icon(Icons.schedule),
+              ),
+              items: [
+                const DropdownMenuItem<String?>(value: null, child: Text('Lo antes posible')),
+                for (final h in _horarios)
+                  DropdownMenuItem<String?>(value: h, child: Text('Hoy a las $h')),
+              ],
+              onChanged: (v) => setState(() => _horaRetiro = v),
+            ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: _confirmar,
@@ -296,8 +341,8 @@ class _PanelMercadoPago extends StatelessWidget {
               style: TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF00527A))),
           SizedBox(height: 4),
           Text(
-            'Vas a poder elegir dinero en cuenta, tarjeta guardada o QR dentro de Mercado Pago. '
-            'Al confirmar, simulamos la aprobación.',
+            'Te llevamos a Mercado Pago para pagar con dinero en cuenta, tarjeta guardada o débito. '
+            'Cuando se acredita, tu pedido queda pagado solo y la vendedora lo ve al instante.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: Color(0xFF00527A)),
           ),
@@ -409,8 +454,10 @@ class _PanelTarjeta extends StatelessWidget {
 
 class _PanelEfectivo extends StatelessWidget {
   final int total;
+  final TextEditingController pagaCon;
+  final String? error;
 
-  const _PanelEfectivo({required this.total});
+  const _PanelEfectivo({required this.total, required this.pagaCon, this.error});
 
   @override
   Widget build(BuildContext context) {
@@ -432,6 +479,33 @@ class _PanelEfectivo extends StatelessWidget {
             'Abonás ${pesos(total)} en efectivo directamente al retirar tu pedido en la cantina.',
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 13, color: Color(0xFF92400E)),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: pagaCon,
+            keyboardType: TextInputType.number,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+            decoration: InputDecoration(
+              labelText: '¿Con cuánto efectivo pagás?',
+              prefixText: '\$ ',
+              errorText: error,
+              filled: true,
+              fillColor: Colors.white,
+            ),
+          ),
+          ListenableBuilder(
+            listenable: pagaCon,
+            builder: (context, _) {
+              final valor = int.tryParse(pagaCon.text);
+              if (valor == null || valor < total) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Te llevás ${pesos(valor - total)} de vuelto',
+                  style: const TextStyle(fontWeight: FontWeight.w800, color: Color(0xFF92400E)),
+                ),
+              );
+            },
           ),
         ],
       ),

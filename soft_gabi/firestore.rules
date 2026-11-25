@@ -53,8 +53,11 @@ service cloud.firestore {
     // --- pedidos/{id}: cada pedido hecho desde la app ---
     match /pedidos/{id} {
       // Cualquier persona logueada (incluso invitada, con sesión anónima)
-      // puede crear un pedido a su nombre.
-      allow create: if esUsuarioAutenticado() && request.resource.data.uid == request.auth.uid;
+      // puede crear un pedido a su nombre. Nadie puede crearlo ya "pagado":
+      // el estado de Mercado Pago solo lo cambia el servidor (functions/).
+      allow create: if esUsuarioAutenticado() && request.resource.data.uid == request.auth.uid &&
+        request.resource.data.get('estadoPago', null) in [null, 'pendiente'] &&
+        !('mpPagoId' in request.resource.data);
       // Ver un pedido puntual: su dueño, o la vendedora/master.
       allow get: if esUsuarioAutenticado() &&
         (resource.data.uid == request.auth.uid || esVendedoraOMaster());
@@ -73,6 +76,17 @@ service cloud.firestore {
       // Lo escribe la transacción de confirmarPago(); cualquier persona
       // logueada puede pedir, así que cualquiera puede avanzar el contador.
       allow write: if esUsuarioAutenticado();
+    }
+
+    // --- combos/{id}: combos que arma la vendedora ---
+    match /combos/{id} {
+      allow read: if esUsuarioAutenticado();
+      allow create, update, delete: if esVendedoraOMaster();
+    }
+
+    // --- notas/{id}: anotador privado de la vendedora ---
+    match /notas/{id} {
+      allow read, create, update, delete: if esVendedoraOMaster();
     }
 
     // --- productos/{id}: el catálogo de la cantina ---

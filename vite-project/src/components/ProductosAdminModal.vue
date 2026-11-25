@@ -1,9 +1,10 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { FolderOpen, X, UtensilsCrossed } from 'lucide-vue-next'
+import { FolderOpen, X, UtensilsCrossed, Plus, Trash2, Flame } from 'lucide-vue-next'
 import { useCantina } from '../composables/useCantina.js'
 import { resolverImagenUrl } from '../data/catalogo.js'
 import { iconoDeEmoji, iconoDeCategoria } from '../data/iconos.js'
+import { nuevoIdCorto } from '../data/pedidos.js'
 
 defineProps({
   mostrar: Boolean
@@ -18,6 +19,8 @@ const nombre = ref('')
 const descripcion = ref('')
 const precio = ref('')
 const stock = ref('') // vacío = sin límite (stock: null en Firestore)
+const calorias = ref('') // vacío = no se muestra
+const opciones = ref([]) // [{ id, nombre, precio }] extras que el cliente puede tildar
 const categoria = ref('platos')
 const previewImagen = ref(null) // data URL para mostrar
 const imagenBase64 = ref(null) // string sin el prefijo data:, lo que se guarda en Firestore
@@ -36,6 +39,8 @@ function limpiarFormulario() {
   descripcion.value = ''
   precio.value = ''
   stock.value = ''
+  calorias.value = ''
+  opciones.value = []
   categoria.value = 'platos'
   previewImagen.value = null
   imagenBase64.value = null
@@ -48,6 +53,8 @@ function editar(producto) {
   descripcion.value = producto.descripcion
   precio.value = producto.precio
   stock.value = producto.stock === null || producto.stock === undefined ? '' : producto.stock
+  calorias.value = typeof producto.calorias === 'number' ? producto.calorias : ''
+  opciones.value = (producto.opciones ?? []).map((o) => ({ ...o }))
   categoria.value = producto.categoria
   previewImagen.value = resolverImagenUrl(producto)
   imagenBase64.value = producto.imagenBase64 || null
@@ -114,6 +121,14 @@ function elegirImagen(evento) {
   lector.readAsDataURL(archivo)
 }
 
+function agregarOpcion() {
+  opciones.value.push({ id: nuevoIdCorto(), nombre: '', precio: 0 })
+}
+
+function quitarOpcion(id) {
+  opciones.value = opciones.value.filter((o) => o.id !== id)
+}
+
 function quitarImagen() {
   previewImagen.value = null
   imagenBase64.value = null
@@ -129,6 +144,10 @@ async function guardar() {
 
   const catInfo = categorias.find((c) => c.id === categoria.value)
   const stockValor = stock.value === '' ? null : Math.max(0, Math.trunc(Number(stock.value)))
+  const caloriasValor = calorias.value === '' ? null : Math.max(0, Math.trunc(Number(calorias.value)))
+  const opcionesValor = opciones.value
+    .filter((o) => o.nombre.trim())
+    .map((o) => ({ id: o.id, nombre: o.nombre.trim(), precio: Math.max(0, Math.trunc(Number(o.precio) || 0)) }))
   guardando.value = true
   try {
     if (editandoId.value) {
@@ -141,6 +160,8 @@ async function guardar() {
         imagenBase64: imagenBase64.value,
         tiempo: categoriasDeKiosco.has(categoria.value) ? 1 : 10,
         stock: stockValor,
+        calorias: caloriasValor,
+        opciones: opcionesValor,
       })
     } else {
       await agregarProducto({
@@ -151,6 +172,8 @@ async function guardar() {
         categoriaLabel: catInfo?.nombre ?? categoria.value,
         imagenBase64: imagenBase64.value,
         stock: stockValor,
+        calorias: caloriasValor,
+        opciones: opcionesValor,
       })
     }
     limpiarFormulario()
@@ -235,10 +258,33 @@ async function borrar(producto) {
             </div>
           </div>
 
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Stock</label>
+              <input v-model="stock" type="number" min="0" placeholder="Sin límite" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sb-red" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Calorías (kcal)</label>
+              <input v-model="calorias" type="number" min="0" placeholder="Opcional" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sb-red" />
+            </div>
+          </div>
+          <p class="text-[11px] text-slate-400 font-medium -mt-1">Stock vacío = sin control. En 0 el producto se oculta del menú solo.</p>
+
           <div>
-            <label class="block text-xs font-bold text-slate-700 mb-1">Stock</label>
-            <input v-model="stock" type="number" min="0" placeholder="Sin límite" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-sb-red" />
-            <p class="text-[11px] text-slate-400 font-medium mt-1">Dejalo vacío para no controlar el stock. En 0 el producto se oculta del menú solo.</p>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-xs font-bold text-slate-700">Opciones para personalizar</label>
+              <button @click="agregarOpcion" type="button" class="text-[11px] font-bold text-sb-red hover:underline cursor-pointer flex items-center gap-0.5">
+                <Plus :size="12" /> Agregar
+              </button>
+            </div>
+            <div v-for="o in opciones" :key="o.id" class="flex items-center gap-1.5 mb-1.5">
+              <input v-model="o.nombre" type="text" placeholder="Ej: Extra queso" class="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-sb-red" />
+              <input v-model="o.precio" type="number" min="0" placeholder="$0" title="Precio extra (0 = gratis)" class="w-16 px-2 py-1.5 rounded-lg border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-sb-red" />
+              <button @click="quitarOpcion(o.id)" type="button" class="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-sb-red flex items-center justify-center cursor-pointer shrink-0" aria-label="Quitar opción">
+                <Trash2 :size="12" />
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-400 font-medium">Ej: "Sin cebolla" $0, "Extra queso" $500. El cliente además puede escribir una aclaración.</p>
           </div>
 
           <p v-if="mensajeError" class="text-xs font-bold text-sb-red">{{ mensajeError }}</p>
@@ -290,7 +336,11 @@ async function borrar(producto) {
               </div>
               <div class="flex-1 min-w-[120px]">
                 <p class="font-black text-xs text-slate-900 truncate">{{ p.nombre }}</p>
-                <p class="text-[11px] text-slate-500 font-bold">{{ p.categoriaLabel }} · ${{ p.precio.toLocaleString('es-AR') }}</p>
+                <p class="text-[11px] text-slate-500 font-bold">
+                  {{ p.categoriaLabel }} · ${{ p.precio.toLocaleString('es-AR') }}
+                  <span v-if="typeof p.calorias === 'number'" class="inline-flex items-center gap-0.5 text-orange-600"> · <Flame :size="10" />{{ p.calorias }} kcal</span>
+                  <span v-if="p.opciones?.length" class="text-slate-400"> · {{ p.opciones.length }} opciones</span>
+                </p>
                 <span
                   v-if="p.stock === 0"
                   class="inline-block mt-1 text-[10px] font-black text-sb-red bg-red-50 border border-red-200 px-2 py-0.5 rounded-full"

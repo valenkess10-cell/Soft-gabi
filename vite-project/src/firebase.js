@@ -1,6 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
+import { getFunctions } from 'firebase/functions'
 
 // Mismo proyecto de Firebase que usa la app de Flutter (MiCantina), así que
 // el catálogo, los pedidos y los usuarios se comparten en tiempo real entre
@@ -18,3 +19,6 @@ const firebaseConfig = {
 export const app = initializeApp(firebaseConfig)
 export const auth = getAuth(app)
 export const db = getFirestore(app)
+
+// Cloud Functions: las usa el cobro con Mercado Pago (functions/index.js).
+export const functions = getFunctions(app)

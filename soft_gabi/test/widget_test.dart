@@ -3,7 +3,9 @@ import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soft_gabi/data/catalogo.dart';
 import 'package:soft_gabi/main.dart';
+import 'package:soft_gabi/models/producto.dart';
 import 'package:soft_gabi/providers/cantina_provider.dart';
+import 'package:soft_gabi/utils/pedidos_util.dart';
 
 /// Arma un provider "de prueba": en vez de conectarse a un proyecto de
 /// Firebase real, usa una base y una autenticación simuladas en memoria
@@ -24,10 +26,68 @@ void main() {
       expect(c.cantidadTotal, 2);
       expect(c.totalCarrito, pizza.precio * 2);
 
-      c.decrementarCantidad(pizza);
+      c.decrementarCantidad(c.carrito.first);
       expect(c.cantidadTotal, 1);
-      c.decrementarCantidad(pizza);
+      c.decrementarCantidad(c.carrito.first);
       expect(c.carrito, isEmpty);
+    });
+
+    test('las opciones suman precio y separan líneas del carrito', () {
+      final c = nuevoProvider();
+      const queso = OpcionProducto(id: 'q', nombre: 'Extra queso', precio: 500);
+      const cebolla = OpcionProducto(id: 'c', nombre: 'Sin cebolla');
+      final pizza = Producto(
+        id: 'p',
+        nombre: 'Pizza',
+        descripcion: '',
+        precio: 3000,
+        tag: '',
+        tiempo: 10,
+        categoria: 'pizzas',
+        categoriaLabel: 'Pizzas',
+        opciones: const [queso, cebolla],
+      );
+
+      c.agregarAlCarrito(pizza, opciones: [queso]);
+      c.agregarAlCarrito(pizza, opciones: [queso]); // misma combinación: suma
+      c.agregarAlCarrito(pizza, opciones: [cebolla], nota: 'bien cocida');
+      expect(c.carrito.length, 2);
+      expect(c.totalCarrito, 3500 * 2 + 3000);
+      expect(c.carrito.last.nota, 'bien cocida');
+    });
+
+    test('un combo usa su precio especial y detalla sus productos', () {
+      final c = nuevoProvider();
+      final combo = Combo(
+        id: 'c1',
+        nombre: 'Pizza + Coca',
+        precio: 4000,
+        items: [
+          ItemCombo(productoId: productos.first.id, nombre: productos.first.nombre),
+          const ItemCombo(productoId: '28', nombre: 'Coca-Cola'),
+        ],
+      );
+      final detalle = DetalleCombo.calcular(combo, productos);
+      expect(detalle.disponible, isTrue);
+      expect(detalle.precioNormal, productos.first.precio + 1800);
+      expect(detalle.ahorro, detalle.precioNormal - 4000);
+
+      c.agregarComboAlCarrito(detalle);
+      expect(c.totalCarrito, 4000);
+      expect(c.carrito.first.aItemPedido().detalle, hasLength(2));
+    });
+
+    test('los horarios de retiro respetan la anticipación y el cierre', () {
+      expect(horariosDeRetiro(DateTime(2026, 1, 1, 10, 0)).first, '10:30');
+      expect(horariosDeRetiro(DateTime(2026, 1, 1, 6, 0)).first, horaRetiroDesde);
+      expect(horariosDeRetiro(DateTime(2026, 1, 1, 17, 50)), isEmpty);
+    });
+
+    test('los pedidos viejos de la web se leen con el id del método de pago', () {
+      expect(normalizarMetodoPago('Efectivo en caja'), 'efectivo');
+      expect(normalizarMetodoPago('Transferencia bancaria'), 'transferencia');
+      expect(normalizarMetodoPago('Tarjeta en caja'), 'tarjeta');
+      expect(normalizarMetodoPago('mercadopago'), 'mercadopago');
     });
 
     test('el filtro Sin TACC solo devuelve productos aptos', () {
@@ -54,9 +114,11 @@ void main() {
       await c.cargar(); // entra como invitado (sign-in anónimo), como en la app real
       c.agregarAlCarrito(productos.first);
 
-      final pedido = await c.confirmarPago('efectivo');
+      final pedido = await c.confirmarPago('efectivo', horaRetiro: '12:30', pagaCon: 5000);
 
       expect(pedido.numero, 1);
+      expect(pedido.horaRetiro, '12:30');
+      expect(pedido.vuelto, 5000 - productos.first.precio);
       expect(pedido.cliente, 'Invitado');
       expect(c.carrito, isEmpty);
 
@@ -72,6 +134,9 @@ void main() {
       c.agregarAlCarrito(productos.first);
       final pedido = await c.confirmarPago('mercadopago');
       expect(pedido.metodoPagoLabel, 'Mercado Pago');
+      // Mercado Pago queda pendiente hasta que el servidor confirma el pago.
+      expect(pedido.estadoPago, 'pendiente');
+      expect(pedido.cuentaComoCobrado, isFalse);
 
       c.agregarAlCarrito(productos.first);
       final pedido2 = await c.confirmarPago('tarjeta');

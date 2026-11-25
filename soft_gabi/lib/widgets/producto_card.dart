@@ -4,14 +4,21 @@ import '../models/producto.dart';
 import '../providers/cantina_scope.dart';
 import '../theme.dart';
 import '../utils/formato.dart';
+import 'personalizar_sheet.dart';
 
 class ProductoCard extends StatelessWidget {
   final Producto producto;
 
   const ProductoCard({super.key, required this.producto});
 
-  void _agregar(BuildContext context) {
-    CantinaScope.read(context).agregarAlCarrito(producto);
+  Future<void> _agregar(BuildContext context) async {
+    // Con opciones: primero se eligen (extras + aclaración).
+    if (producto.opciones.isNotEmpty) {
+      final agregado = await mostrarPersonalizar(context, producto);
+      if (agregado != true || !context.mounted) return;
+    } else {
+      CantinaScope.read(context).agregarAlCarrito(producto);
+    }
     final messenger = ScaffoldMessenger.of(context);
     messenger
       ..hideCurrentSnackBar()
@@ -141,17 +148,25 @@ class ProductoCard extends StatelessWidget {
                                 '⏱ ${producto.tiempo} min',
                                 style: const TextStyle(fontSize: 11, color: AppColors.gris),
                               ),
+                            if (producto.calorias != null)
+                              Text(
+                                '🔥 ${producto.calorias} kcal',
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFFC2410C),
+                                    fontWeight: FontWeight.w700),
+                              ),
                           ],
                         ),
                       ),
                       IconButton.filled(
-                        tooltip: 'Agregar al pedido',
+                        tooltip: producto.opciones.isNotEmpty ? 'Elegir y agregar' : 'Agregar al pedido',
                         style: IconButton.styleFrom(
                           backgroundColor: AppColors.amarillo,
                           foregroundColor: AppColors.texto,
                         ),
                         onPressed: () => _agregar(context),
-                        icon: const Icon(Icons.add),
+                        icon: Icon(producto.opciones.isNotEmpty ? Icons.tune : Icons.add),
                       ),
                     ],
                   ),

@@ -1,33 +1,38 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { CreditCard, X, Smartphone, Wallet, Banknote, Store, Loader2 } from 'lucide-vue-next'
+import { CreditCard, X, Smartphone, Wallet, Banknote, Store, Loader2, Clock, ShieldCheck } from 'lucide-vue-next'
+import { metodosPago, horariosDeRetiro } from '../data/pedidos.js'
 
 const props = defineProps({
   mostrar: Boolean,
-  total: Number
+  total: Number,
+  // Los maneja App.vue mientras guarda el pedido / pide el link de pago.
+  procesando: Boolean,
+  error: { type: String, default: '' },
 })
 
 const emit = defineEmits(['cerrar', 'pago-exitoso'])
 
-// 4 métodos de pago, igual que en la app (metodoPagoLabel de cantina_provider.dart).
-const metodos = [
-  { id: 'transferencia', icono: Smartphone, nombre: 'Transferencia', etiqueta: 'Transferencia bancaria' },
-  { id: 'mercadopago', icono: Wallet, nombre: 'Mercado Pago', etiqueta: 'Mercado Pago' },
-  { id: 'tarjeta', icono: CreditCard, nombre: 'Tarjeta', etiqueta: 'Tarjeta en caja' },
-  { id: 'efectivo', icono: Banknote, nombre: 'Efectivo', etiqueta: 'Efectivo en caja' },
-]
+const iconos = { transferencia: Smartphone, mercadopago: Wallet, tarjeta: CreditCard, efectivo: Banknote }
+const metodos = metodosPago.map((m) => ({ ...m, icono: iconos[m.id] }))
 
 const tipoPago = ref('transferencia')
 const copiado = ref(false)
-const procesando = ref(false)
 const pagaCon = ref('')
 const errorEfectivo = ref('')
+const horaRetiro = ref('') // '' = lo antes posible
+const horarios = ref([])
 
 const alias = 'lata.isae'
 
 watch(tipoPago, () => { errorEfectivo.value = '' })
 watch(() => props.mostrar, (abierto) => {
-  if (abierto) { pagaCon.value = ''; errorEfectivo.value = '' }
+  if (abierto) {
+    pagaCon.value = ''
+    errorEfectivo.value = ''
+    horaRetiro.value = ''
+    horarios.value = horariosDeRetiro(new Date())
+  }
 })
 
 const copiarAlias = () => {
@@ -53,19 +58,19 @@ const confirmarPago = () => {
     }
   }
 
-  procesando.value = true
-  setTimeout(() => {
-    procesando.value = false
-    const metodo = metodos.find((m) => m.id === tipoPago.value)
-    if (tipoPago.value === 'efectivo') {
-      const valor = Number(pagaCon.value)
-      emit('pago-exitoso', metodo.etiqueta, { pagaCon: valor, vuelto: valor - props.total })
-      pagaCon.value = ''
-    } else {
-      emit('pago-exitoso', metodo.etiqueta, null)
-    }
-  }, 900)
+  const detalle = { horaRetiro: horaRetiro.value || null }
+  if (tipoPago.value === 'efectivo') {
+    const valor = Number(pagaCon.value)
+    detalle.pagaCon = valor
+    detalle.vuelto = valor - props.total
+  }
+  emit('pago-exitoso', tipoPago.value, detalle)
 }
+
+const textoBoton = computed(() => {
+  if (props.procesando) return tipoPago.value === 'mercadopago' ? 'Abriendo Mercado Pago...' : 'Registrando Pedido...'
+  return tipoPago.value === 'mercadopago' ? 'Pagar con Mercado Pago' : 'Confirmar Pedido'
+})
 </script>
 
 <template>
@@ -73,7 +78,7 @@ const confirmarPago = () => {
     v-if="mostrar"
     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity"
   >
-    <div class="bg-white rounded-3xl max-w-md w-full p-6 border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+    <div class="bg-white rounded-3xl max-w-md w-full max-h-[92vh] overflow-y-auto p-6 border border-slate-200 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
 
       <!-- Header -->
       <div class="flex justify-between items-center pb-4 border-b border-slate-100">
@@ -133,28 +138,17 @@ const confirmarPago = () => {
         </div>
       </div>
 
-      <!-- DETALLE: MERCADO PAGO -->
-      <div v-else-if="tipoPago === 'mercadopago'" class="space-y-4">
-        <div class="flex flex-col items-center justify-center bg-sky-50 p-4 rounded-2xl border border-sky-200">
-          <img
-            :src="`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=MercadoPago:${alias}_Monto:${total}`"
-            alt="Código QR de Mercado Pago"
-            class="w-40 h-40 rounded-xl border border-sky-200 shadow-sm"
-          />
-          <p class="text-[11px] font-bold text-sky-700 mt-2">Escaneá desde la app de Mercado Pago</p>
-        </div>
-        <div class="bg-sky-100 p-3.5 rounded-2xl border border-sky-200 flex items-center justify-between">
-          <div>
-            <span class="text-[10px] font-bold text-sky-500 uppercase tracking-wider block">Alias Mercado Pago</span>
-            <span class="text-base font-black text-sky-950">{{ alias }}</span>
-          </div>
-          <button
-            @click="copiarAlias"
-            class="bg-sky-600 hover:bg-sky-700 active:scale-95 text-white text-xs font-black px-3.5 py-2 rounded-xl transition-all cursor-pointer"
-          >
-            {{ copiado ? '¡Copiado!' : 'Copiar' }}
-          </button>
-        </div>
+      <!-- DETALLE: MERCADO PAGO (cobro real, ver functions/index.js) -->
+      <div v-else-if="tipoPago === 'mercadopago'" class="bg-sky-50 border border-sky-200 rounded-2xl p-5 text-center space-y-2">
+        <Wallet :size="32" class="text-sky-600 mx-auto" />
+        <h4 class="text-sm font-black text-sky-950">Pagás dentro de Mercado Pago</h4>
+        <p class="text-xs text-sky-800 font-medium">
+          Te llevamos a Mercado Pago para pagar con dinero en cuenta, tarjeta guardada o débito.
+          Cuando se acredita, tu pedido queda pagado solo y vuelve a esta página.
+        </p>
+        <p class="text-[11px] text-sky-700 font-bold flex items-center justify-center gap-1">
+          <ShieldCheck :size="12" /> No guardamos datos de tu tarjeta
+        </p>
       </div>
 
       <!-- DETALLE: TARJETA -->
@@ -191,14 +185,30 @@ const confirmarPago = () => {
         </div>
       </div>
 
+      <!-- Hora de retiro -->
+      <div class="mt-4">
+        <label class="block text-xs font-black text-slate-700 mb-1.5 flex items-center gap-1.5">
+          <Clock :size="14" /> ¿A qué hora lo retirás?
+        </label>
+        <select
+          v-model="horaRetiro"
+          class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-sb-red"
+        >
+          <option value="">Lo antes posible</option>
+          <option v-for="h in horarios" :key="h" :value="h">Hoy a las {{ h }}</option>
+        </select>
+      </div>
+
+      <p v-if="error" class="text-xs font-bold text-sb-red mt-3 text-center">{{ error }}</p>
+
       <!-- Botón de Confirmación -->
       <button
         @click="confirmarPago"
         :disabled="procesando"
-        class="w-full mt-5 bg-sb-red hover:bg-red-700 active:scale-95 text-white font-black py-3.5 rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+        class="w-full mt-4 bg-sb-red hover:bg-red-700 active:scale-95 text-white font-black py-3.5 rounded-2xl text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
       >
         <Loader2 v-if="procesando" :size="16" class="animate-spin" />
-        <span>{{ procesando ? 'Registrando Pedido...' : 'Confirmar Pedido' }}</span>
+        <span>{{ textoBoton }}</span>
       </button>
 
     </div>

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/catalogo.dart';
 import '../providers/cantina_scope.dart';
 import '../theme.dart';
+import '../widgets/combo_card.dart';
 import '../widgets/producto_card.dart';
 import 'auth_screen.dart';
 
@@ -164,6 +165,14 @@ class InicioScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 22),
+
+        // ---------------------------------------------------------- combos
+        if (cantina.combosVisibles.isNotEmpty) ...[
+          const Text('🍱 Combos', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 10),
+          for (final c in cantina.combosVisibles) ComboCard(detalle: c),
+          const SizedBox(height: 12),
+        ],
 
         // ------------------------------------------------------ destacados
         Row(

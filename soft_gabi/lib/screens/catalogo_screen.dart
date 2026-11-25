@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../data/catalogo.dart';
+import '../models/producto.dart';
 import '../providers/cantina_scope.dart';
 import '../theme.dart';
+import '../widgets/combo_card.dart';
 import '../widgets/producto_card.dart';
 
 /// Menú completo con filtro por categoría (incluye "Sin TACC").
@@ -13,6 +15,8 @@ class CatalogoScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final cantina = CantinaScope.of(context);
     final lista = cantina.productosFiltrados;
+    // En "Todos" los combos van arriba de los productos.
+    final combos = cantina.categoriaActiva == 'todos' ? cantina.combosVisibles : const <DetalleCombo>[];
     final opciones = [categoriaTodos, ...categorias];
 
     return Column(
@@ -56,7 +60,7 @@ class CatalogoScreen extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: lista.isEmpty
+          child: lista.isEmpty && combos.isEmpty
               ? const Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -72,8 +76,10 @@ class CatalogoScreen extends StatelessWidget {
                 )
               : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-                  itemCount: lista.length,
-                  itemBuilder: (context, i) => ProductoCard(producto: lista[i]),
+                  itemCount: combos.length + lista.length,
+                  itemBuilder: (context, i) => i < combos.length
+                      ? ComboCard(detalle: combos[i])
+                      : ProductoCard(producto: lista[i - combos.length]),
                 ),
         ),
       ],

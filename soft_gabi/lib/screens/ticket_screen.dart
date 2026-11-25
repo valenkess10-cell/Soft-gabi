@@ -17,7 +17,9 @@ class TicketScreen extends StatelessWidget {
     final efectivo = pedido.metodoPago == 'efectivo';
     final textoTotal = efectivo
         ? 'Total a pagar al retirar: ${pesos(pedido.total)}'
-        : 'Total abonado con ${pedido.metodoPagoLabel}: ${pesos(pedido.total)}';
+        : pedido.esMercadoPago && !pedido.pagoAprobado
+            ? 'Pago con Mercado Pago pendiente: ${pesos(pedido.total)}'
+            : 'Total abonado con ${pedido.metodoPagoLabel}: ${pesos(pedido.total)}';
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
@@ -74,6 +76,30 @@ class TicketScreen extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                border: Border.all(color: const Color(0xFFFDE68A)),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Text(
+                pedido.horaRetiro != null
+                    ? '🕒 Retirás hoy a las ${pedido.horaRetiro}'
+                    : '🕒 Lo preparamos lo antes posible',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontWeight: FontWeight.w900, color: Color(0xFF78350F)),
+              ),
+            ),
+            if (efectivo && pedido.vuelto != null && pedido.vuelto! > 0) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Pagás con ${pesos(pedido.pagaCon!)} · tu vuelto: ${pesos(pedido.vuelto!)}',
+                style: const TextStyle(fontSize: 12, color: AppColors.gris),
+              ),
+            ],
             const SizedBox(height: 16),
             QrImageView(
               data: 'MICANTINA-${pedido.id}-${pedido.numero}',

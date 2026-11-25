@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/foundation.dart';
 
@@ -13,9 +14,10 @@ import '../models/producto.dart';
 /// así que se sincronizan solos entre todos los celulares: si alguien pide
 /// desde su teléfono, la vendedora lo ve en el suyo al instante.
 class CantinaProvider extends ChangeNotifier {
-  CantinaProvider({fb.FirebaseAuth? auth, FirebaseFirestore? db})
+  CantinaProvider({fb.FirebaseAuth? auth, FirebaseFirestore? db, FirebaseFunctions? functions})
       : _auth = auth ?? fb.FirebaseAuth.instance,
-        _db = db ?? FirebaseFirestore.instance;
+        _db = db ?? FirebaseFirestore.instance,
+        _functionsPropio = functions;
 
   /// Login de la vendedora: entra directo con este email y contraseña fijos,
   /// sin que nadie tenga que registrarla antes. La primera vez que alguien
@@ -31,10 +33,16 @@ class CantinaProvider extends ChangeNotifier {
 
   final fb.FirebaseAuth _auth;
   final FirebaseFirestore _db;
+  final FirebaseFunctions? _functionsPropio;
+  // Se pide recién al usarlo (cobro con Mercado Pago), así los tests que no
+  // tienen Firebase real pueden crear el provider igual.
+  FirebaseFunctions get _functions => _functionsPropio ?? FirebaseFunctions.instance;
 
   CollectionReference<Map<String, dynamic>> get _colUsuarios => _db.collection('usuarios');
   CollectionReference<Map<String, dynamic>> get _colPedidos => _db.collection('pedidos');
   CollectionReference<Map<String, dynamic>> get _colProductos => _db.collection('productos');
+  CollectionReference<Map<String, dynamic>> get _colCombos => _db.collection('combos');
+  CollectionReference<Map<String, dynamic>> get _colNotas => _db.collection('notas');
   DocumentReference<Map<String, dynamic>> get _docContadorTurnos =>
       _db.collection('contadores').doc('turnos');
 
@@ -42,10 +50,14 @@ class CantinaProvider extends ChangeNotifier {
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _subPedidos;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _subUsuarios;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _subProductos;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _subCombos;
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _subNotas;
 
   List<Pedido> _pedidos = []; // el más reciente primero
   List<Usuario> _usuariosRegistrados = [];
   List<Producto> _productos = []; // el catálogo "vivo" que viene de Firestore
+  List<Combo> _combos = [];
+  List<Nota> _notas = [];
   final List<ItemCarrito> _carrito = [];
   Usuario? _usuario;
   String _categoriaActiva = 'todos';
@@ -72,6 +84,7 @@ class CantinaProvider extends ChangeNotifier {
     // _sembrarProductosSiHaceFalta): las reglas de Firestore solo dejan
     // escribir en `productos` a la vendedora/master.
     _escucharProductos();
+    _escucharCombos();
     _listo = true;
     notifyListeners();
   }
@@ -117,6 +130,21 @@ class CantinaProvider extends ChangeNotifier {
     });
   }
 
+  void _escucharCombos() {
+    _subCombos = _colCombos.snapshots().listen((snap) {
+      final combos = <Combo>[];
+      for (final doc in snap.docs) {
+        try {
+          combos.add(Combo.deDocumento(doc));
+        } catch (e) {
+          debugPrint('No se pudo leer el combo ${doc.id}: $e');
+        }
+      }
+      _combos = combos;
+      notifyListeners();
+    }, onError: (Object e) => debugPrint('No se pudieron leer los combos: $e'));
+  }
+
   Future<void> _onCambioSesion(fb.User? user) async {
     if (user == null || user.isAnonymous) {
       _aplicarUsuario(null);
@@ -146,16 +174,20 @@ class CantinaProvider extends ChangeNotifier {
     _usuario = nuevo;
     _subUsuarios?.cancel();
     _subPedidos?.cancel();
+    _subNotas?.cancel();
     _subUsuarios = null;
     _subPedidos = null;
+    _subNotas = null;
     _usuariosRegistrados = [];
     _pedidos = [];
+    _notas = [];
 
     // Solo quien ve el Panel de Ventas necesita escuchar TODOS los pedidos
     // (las reglas de Firestore además lo exigen: un cliente común no puede
     // leer los pedidos de otras personas).
     if (puedeVerVentas) {
       _escucharPedidos();
+      _escucharNotas();
       if (esMaster) _escucharUsuarios();
       // Sin "await": no hace falta bloquear el login para esto, y el
       // listener de productos ya activo recoge el resultado solo.
@@ -170,9 +202,24 @@ class CantinaProvider extends ChangeNotifier {
         .limit(300)
         .snapshots()
         .listen((snap) {
-      _pedidos = snap.docs.map(Pedido.deDocumento).toList();
+      final pedidos = <Pedido>[];
+      for (final doc in snap.docs) {
+        try {
+          pedidos.add(Pedido.deDocumento(doc));
+        } catch (e) {
+          debugPrint('No se pudo leer el pedido ${doc.id}: $e');
+        }
+      }
+      _pedidos = pedidos;
       notifyListeners();
     });
+  }
+
+  void _escucharNotas() {
+    _subNotas = _colNotas.orderBy('fecha', descending: true).snapshots().listen((snap) {
+      _notas = snap.docs.map(Nota.deDocumento).toList();
+      notifyListeners();
+    }, onError: (Object e) => debugPrint('No se pudo leer el anotador: $e'));
   }
 
   void _escucharUsuarios() {
@@ -188,6 +235,8 @@ class CantinaProvider extends ChangeNotifier {
     _subPedidos?.cancel();
     _subUsuarios?.cancel();
     _subProductos?.cancel();
+    _subCombos?.cancel();
+    _subNotas?.cancel();
     super.dispose();
   }
 
@@ -301,8 +350,11 @@ class CantinaProvider extends ChangeNotifier {
   /// se vea vacía; apenas llega el primer snapshot, se usa el real.
   List<Producto> get _productosActuales => _productos.isEmpty ? catalogo.productos : _productos;
 
+  /// Lo que ve un cliente: sin los productos agotados (stock 0).
+  List<Producto> get _productosVisibles => _productosActuales.where((p) => p.tieneStock).toList();
+
   List<Producto> get productosFiltrados {
-    final base = _productosActuales;
+    final base = _productosVisibles;
     switch (_categoriaActiva) {
       case 'todos':
         return base;
@@ -313,7 +365,20 @@ class CantinaProvider extends ChangeNotifier {
     }
   }
 
-  List<Producto> get destacados => _productosActuales.where((p) => p.destacado).toList();
+  List<Producto> get destacados => _productosVisibles.where((p) => p.destacado).toList();
+
+  List<Producto> productosDeCategoria(String categoriaId) =>
+      _productosVisibles.where((p) => p.categoria == categoriaId).toList();
+
+  /// Combos que se ofrecen a los clientes (activos y con todo en stock).
+  List<DetalleCombo> get combosVisibles => [
+        for (final c in _combos)
+          if (DetalleCombo.calcular(c, _productosActuales) case final d when d.disponible) d,
+      ];
+
+  /// Todos los combos (también pausados), para el panel de la vendedora.
+  List<DetalleCombo> get todosLosCombos =>
+      [for (final c in _combos) DetalleCombo.calcular(c, _productosActuales)];
 
   /// Catálogo completo (todas las categorías), para el panel de productos
   /// de la vendedora/master.
@@ -330,6 +395,8 @@ class CantinaProvider extends ChangeNotifier {
     required String categoriaId,
     String? descripcion,
     String? imagenBase64,
+    int? calorias,
+    List<OpcionProducto> opciones = const [],
   }) async {
     if (!puedeVerVentas) return 'No tenés permiso para agregar productos';
     try {
@@ -349,6 +416,8 @@ class CantinaProvider extends ChangeNotifier {
         tiempo: 5,
         categoria: cat.id,
         categoriaLabel: cat.nombre,
+        calorias: calorias,
+        opciones: opciones,
       );
       await ref.set(nuevo.aCampos());
       return null;
@@ -359,6 +428,8 @@ class CantinaProvider extends ChangeNotifier {
 
   /// Edita un producto existente (incluidos los del catálogo original: al
   /// venir todos de Firestore, cualquiera se puede modificar o borrar).
+  /// Solo actualiza los campos de este formulario: así no se pierde el
+  /// stock ni otros datos que se cargan desde la web.
   Future<String?> editarProducto({
     required Producto original,
     required String nombre,
@@ -366,6 +437,8 @@ class CantinaProvider extends ChangeNotifier {
     required String categoriaId,
     String? descripcion,
     Object? imagenBase64 = sinCambioImagen,
+    int? calorias,
+    List<OpcionProducto> opciones = const [],
   }) async {
     if (!puedeVerVentas) return 'No tenés permiso para editar productos';
     try {
@@ -374,15 +447,22 @@ class CantinaProvider extends ChangeNotifier {
         orElse: () => catalogo.categorias.first,
       );
       final nombreLimpio = nombre.trim();
-      final actualizado = original.copyWith(
-        nombre: nombreLimpio,
-        descripcion: (descripcion?.trim().isNotEmpty ?? false) ? descripcion!.trim() : nombreLimpio,
-        precio: precio,
-        categoria: cat.id,
-        categoriaLabel: cat.nombre,
-        imagenBase64: imagenBase64,
-      );
-      await _colProductos.doc(original.id).set(actualizado.aCampos());
+      final cambios = <String, dynamic>{
+        'nombre': nombreLimpio,
+        'descripcion':
+            (descripcion?.trim().isNotEmpty ?? false) ? descripcion!.trim() : nombreLimpio,
+        'precio': precio,
+        'categoria': cat.id,
+        'categoriaLabel': cat.nombre,
+        'calorias': calorias,
+        'opciones': opciones.map((o) => o.aCampos()).toList(),
+      };
+      if (!identical(imagenBase64, sinCambioImagen)) {
+        cambios['imagenBase64'] = imagenBase64 as String?;
+        // Si borran la foto subida, tampoco se vuelve a la foto de fábrica.
+        if (imagenBase64 == null) cambios['imagen'] = null;
+      }
+      await _colProductos.doc(original.id).set(cambios, SetOptions(merge: true));
       return null;
     } catch (_) {
       return 'No se pudo guardar el cambio. Probá de nuevo.';
@@ -400,34 +480,127 @@ class CantinaProvider extends ChangeNotifier {
     }
   }
 
+  // --------------------------------------------------- combos (vendedora)
+  /// Crea (id == null) o edita un combo. Devuelve un error o null.
+  Future<String?> guardarCombo({
+    String? id,
+    required String nombre,
+    String descripcion = '',
+    required int precio,
+    required List<ItemCombo> items,
+    bool activo = true,
+  }) async {
+    if (!puedeVerVentas) return 'No tenés permiso para armar combos';
+    final unidades = items.fold<int>(0, (s, i) => s + i.cantidad);
+    if (unidades < 2) return 'Un combo lleva al menos 2 productos';
+    try {
+      final ref = id == null ? _colCombos.doc() : _colCombos.doc(id);
+      final anterior = _combos.where((c) => c.id == id).toList();
+      final combo = Combo(
+        id: ref.id,
+        nombre: nombre.trim(),
+        descripcion: descripcion.trim(),
+        precio: precio,
+        items: items,
+        activo: activo,
+        imagenBase64: anterior.isEmpty ? null : anterior.first.imagenBase64,
+      );
+      await ref.set(combo.aCampos());
+      return null;
+    } catch (_) {
+      return 'No se pudo guardar el combo. Probá de nuevo.';
+    }
+  }
+
+  Future<String?> cambiarComboActivo(Combo combo, bool activo) async {
+    try {
+      await _colCombos.doc(combo.id).update({'activo': activo});
+      return null;
+    } catch (_) {
+      return 'No se pudo cambiar el combo.';
+    }
+  }
+
+  Future<String?> eliminarCombo(Combo combo) async {
+    try {
+      await _colCombos.doc(combo.id).delete();
+      return null;
+    } catch (_) {
+      return 'No se pudo eliminar el combo.';
+    }
+  }
+
+  // ------------------------------------------------- anotador (vendedora)
+  List<Nota> get notas => List.unmodifiable(_notas);
+
+  Future<String?> agregarNota(String texto) async {
+    final t = texto.trim();
+    if (t.isEmpty) return null;
+    try {
+      await _colNotas.add({
+        'texto': t,
+        'hecha': false,
+        'autor': _usuario?.nombre ?? '',
+        'fecha': FieldValue.serverTimestamp(),
+      });
+      return null;
+    } catch (_) {
+      return 'No se pudo guardar la nota.';
+    }
+  }
+
+  Future<void> marcarNota(Nota nota, bool hecha) => _colNotas.doc(nota.id).update({'hecha': hecha});
+
+  Future<void> eliminarNota(Nota nota) => _colNotas.doc(nota.id).delete();
+
   // ------------------------------------------------------------ carrito
   List<ItemCarrito> get carrito => List.unmodifiable(_carrito);
   int get totalCarrito => _carrito.fold(0, (s, i) => s + i.subtotal);
   int get cantidadTotal => _carrito.fold(0, (s, i) => s + i.cantidad);
 
-  void agregarAlCarrito(Producto producto) {
-    final index = _carrito.indexWhere((i) => i.producto.id == producto.id);
+  void _sumarLinea(ItemCarrito nueva) {
+    final index = _carrito.indexWhere((i) => i.clave == nueva.clave);
     if (index >= 0) {
       _carrito[index].cantidad++;
+      if (nueva.nota.trim().isNotEmpty) _carrito[index].nota = nueva.nota.trim();
     } else {
-      _carrito.add(ItemCarrito(producto: producto));
+      _carrito.add(nueva);
     }
     notifyListeners();
   }
 
-  void decrementarCantidad(Producto producto) {
-    final index = _carrito.indexWhere((i) => i.producto.id == producto.id);
-    if (index < 0) return;
-    if (_carrito[index].cantidad > 1) {
-      _carrito[index].cantidad--;
+  /// Mismo producto con las mismas opciones suma cantidad; con opciones
+  /// distintas va en otra línea.
+  void agregarAlCarrito(
+    Producto producto, {
+    List<OpcionProducto> opciones = const [],
+    String nota = '',
+  }) =>
+      _sumarLinea(ItemCarrito(producto: producto, opciones: opciones, nota: nota.trim()));
+
+  void agregarComboAlCarrito(DetalleCombo combo) => _sumarLinea(ItemCarrito(combo: combo));
+
+  void sumarCantidad(ItemCarrito item) {
+    item.cantidad++;
+    notifyListeners();
+  }
+
+  void decrementarCantidad(ItemCarrito item) {
+    if (item.cantidad > 1) {
+      item.cantidad--;
     } else {
-      _carrito.removeAt(index);
+      _carrito.remove(item);
     }
     notifyListeners();
   }
 
-  void quitarDelCarrito(Producto producto) {
-    _carrito.removeWhere((i) => i.producto.id == producto.id);
+  void quitarDelCarrito(ItemCarrito item) {
+    _carrito.remove(item);
+    notifyListeners();
+  }
+
+  void cambiarNota(ItemCarrito item, String nota) {
+    item.nota = nota.trim();
     notifyListeners();
   }
 
@@ -435,7 +608,8 @@ class CantinaProvider extends ChangeNotifier {
   /// Solo tiene datos si la cuenta activa puede ver el Panel de Ventas
   /// (ver _onCambioSesion): un cliente común no escucha los pedidos ajenos.
   List<Pedido> get pedidos => List.unmodifiable(_pedidos);
-  int get totalRecaudado => _pedidos.fold(0, (s, p) => s + p.total);
+  int get totalRecaudado =>
+      _pedidos.where((p) => p.cuentaComoCobrado).fold(0, (s, p) => s + p.total);
   int get pedidosHoy {
     final hoy = DateTime.now();
     return _pedidos.where((p) => _mismoDia(p.fecha, hoy)).length;
@@ -450,53 +624,72 @@ class CantinaProvider extends ChangeNotifier {
   /// Registra el pedido en Firestore y vacía el carrito. El número de turno
   /// se asigna con una transacción (vuelve a 1 cada día) para que dos
   /// pedidos simultáneos nunca puedan terminar con el mismo número.
-  Future<Pedido> confirmarPago(String metodoPago) async {
+  ///
+  /// [horaRetiro]: "HH:MM" de hoy, o null = lo antes posible.
+  /// Con Mercado Pago el pedido queda con estadoPago 'pendiente' hasta que
+  /// el servidor recibe la confirmación (ver crearPagoMercadoPago).
+  Future<Pedido> confirmarPago(String metodoPago, {String? horaRetiro, int? pagaCon}) async {
     assert(_carrito.isNotEmpty, 'No se puede confirmar un pedido vacío');
     final ahora = DateTime.now();
     final hoy = _claveDelDia(ahora);
     final pedidoRef = _colPedidos.doc();
-    final items =
-        _carrito.map((i) => ItemPedido(nombre: i.producto.nombre, cantidad: i.cantidad)).toList();
+    final items = _carrito.map((i) => i.aItemPedido()).toList();
     final total = totalCarrito;
     final cliente = _usuario?.nombre ?? 'Invitado';
     final uid = _auth.currentUser?.uid;
+    final esEfectivo = metodoPago == 'efectivo';
 
-    final numero = await _db.runTransaction<int>((tx) async {
-      final snap = await tx.get(_docContadorTurnos);
-      final datos = snap.data();
-      final mismaFecha = datos != null && datos['fecha'] == hoy;
-      final nuevoNumero = mismaFecha ? (datos['ultimo'] as int) + 1 : 1;
-      tx.set(_docContadorTurnos, {'fecha': hoy, 'ultimo': nuevoNumero});
-      tx.set(
-        pedidoRef,
-        Pedido(
+    Pedido armar(int numero) => Pedido(
           id: pedidoRef.id,
-          numero: nuevoNumero,
+          numero: numero,
           fecha: ahora,
           cliente: cliente,
           uid: uid,
           items: items,
           total: total,
           metodoPago: metodoPago,
-        ).aCampos(),
-      );
+          horaRetiro: horaRetiro,
+          estadoPago: metodoPago == 'mercadopago' ? 'pendiente' : null,
+          pagaCon: esEfectivo ? pagaCon : null,
+          vuelto: esEfectivo && pagaCon != null ? pagaCon - total : null,
+        );
+
+    final numero = await _db.runTransaction<int>((tx) async {
+      final snap = await tx.get(_docContadorTurnos);
+      final datos = snap.data();
+      final mismaFecha = datos != null && datos['fecha'] == hoy;
+      final nuevoNumero = mismaFecha ? ((datos['ultimo'] as num?)?.toInt() ?? 0) + 1 : 1;
+      tx.set(_docContadorTurnos, {'fecha': hoy, 'ultimo': nuevoNumero});
+      tx.set(pedidoRef, armar(nuevoNumero).aCampos());
       return nuevoNumero;
     });
 
     _carrito.clear();
     notifyListeners();
 
-    return Pedido(
-      id: pedidoRef.id,
-      numero: numero,
-      fecha: ahora,
-      cliente: cliente,
-      uid: uid,
-      items: items,
-      total: total,
-      metodoPago: metodoPago,
-    );
+    return armar(numero);
   }
+
+  /// Le pide al servidor (functions/index.js) el link de pago de Mercado
+  /// Pago para un pedido ya creado. El servidor recalcula el total con los
+  /// precios de Firestore. Devuelve la URL a abrir.
+  Future<String> crearPagoMercadoPago(String pedidoId) async {
+    // Sin tipo genérico: en Android la respuesta llega como Map<Object?, Object?>
+    // y forzarla a Map<String, dynamic> rompería en tiempo de ejecución.
+    final resultado = await _functions
+        .httpsCallable('crearPagoMercadoPago')
+        .call({'pedidoId': pedidoId, 'origen': 'app'});
+    final datos = resultado.data;
+    final url = datos is Map ? datos['initPoint'] : null;
+    if (url is! String || url.isEmpty) throw StateError('Mercado Pago no devolvió el link');
+    return url;
+  }
+
+  /// Sigue en vivo un pedido puntual (para ver cuándo se acredita el pago).
+  Stream<Pedido?> escucharPedido(String pedidoId) => _colPedidos
+      .doc(pedidoId)
+      .snapshots()
+      .map((d) => d.exists ? Pedido.deDocumento(d) : null);
 
   Future<void> calificarPedido(Pedido pedido, int estrellas, String? comentario) async {
     final c = comentario?.trim();

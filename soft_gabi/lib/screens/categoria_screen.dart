@@ -24,7 +24,7 @@ class CategoriaScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cantina = CantinaScope.of(context);
-    final lista = cantina.todosLosProductos.where((p) => p.categoria == categoriaId).toList();
+    final lista = cantina.productosDeCategoria(categoriaId);
 
     return Column(
       children: [

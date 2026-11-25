@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { Timer, Plus, Clock } from 'lucide-vue-next'
+import { Timer, Plus, Clock, Flame, SlidersHorizontal } from 'lucide-vue-next'
 import { resolverImagenUrl } from '../data/catalogo.js'
 import { iconoDeEmoji } from '../data/iconos.js'
 import { useCantina } from '../composables/useCantina.js'
@@ -64,8 +64,14 @@ const cerradoPorHorario = computed(() => esAlmuerzo(props.producto.categoria) &&
       <h3 class="font-black text-sm text-slate-900 leading-snug mb-1">{{ producto.nombre }}</h3>
       <p class="text-xs text-slate-500 mb-4 line-clamp-2 flex-1">{{ producto.descripcion }}</p>
 
-      <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center justify-between gap-2 mb-3">
         <span class="text-lg font-black text-sb-red">${{ producto.precio.toLocaleString('es-AR') }}</span>
+        <span
+          v-if="typeof producto.calorias === 'number'"
+          class="text-[11px] font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full flex items-center gap-1"
+        >
+          <Flame :size="12" /> {{ producto.calorias }} kcal
+        </span>
       </div>
 
       <button
@@ -81,8 +87,9 @@ const cerradoPorHorario = computed(() => esAlmuerzo(props.producto.categoria) &&
         @click="$emit('agregar', producto)"
         class="w-full bg-sb-yellow hover:bg-sb-yellow-hover active:scale-95 text-slate-900 font-black py-2.5 rounded-xl transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer"
       >
-        <Plus :size="14" />
-        <span>Agregar al Carrito</span>
+        <SlidersHorizontal v-if="producto.opciones?.length" :size="14" />
+        <Plus v-else :size="14" />
+        <span>{{ producto.opciones?.length ? 'Elegir y agregar' : 'Agregar al Carrito' }}</span>
       </button>
     </div>
   </div>
