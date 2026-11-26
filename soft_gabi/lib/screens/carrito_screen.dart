@@ -87,29 +87,10 @@ class CarritoScreen extends StatelessWidget {
   const CarritoScreen({super.key});
 
   Future<void> _editarNota(BuildContext context, ItemCarrito item) async {
-    final ctrl = TextEditingController(text: item.nota);
     final nueva = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Aclaración · ${item.nombre}'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          maxLength: 140,
-          textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(hintText: 'Ej: sin mayonesa, bien cocida…'),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancelar')),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, ctrl.text),
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
+      builder: (_) => _DialogoNota(titulo: item.nombre, notaInicial: item.nota),
     );
-    ctrl.dispose();
     if (nueva != null && context.mounted) {
       CantinaScope.read(context).cambiarNota(item, nueva);
     }
@@ -284,6 +265,51 @@ class _LineaCarrito extends StatelessWidget {
           tooltip: 'Sumar uno',
           onPressed: () => cantina.sumarCantidad(item),
           icon: const Icon(Icons.add_circle_outline),
+        ),
+      ],
+    );
+  }
+}
+
+/// Diálogo para escribir la aclaración de una línea del carrito. Es un
+/// StatefulWidget para que el campo de texto se libere recién cuando el
+/// diálogo terminó de cerrarse: si se libera antes (mientras todavía se ve la
+/// animación de cierre), Flutter tira "Failed assertion: '_dependents.isEmpty'".
+class _DialogoNota extends StatefulWidget {
+  final String titulo;
+  final String notaInicial;
+
+  const _DialogoNota({required this.titulo, required this.notaInicial});
+
+  @override
+  State<_DialogoNota> createState() => _DialogoNotaState();
+}
+
+class _DialogoNotaState extends State<_DialogoNota> {
+  late final TextEditingController _ctrl = TextEditingController(text: widget.notaInicial);
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Aclaración · ${widget.titulo}'),
+      content: TextField(
+        controller: _ctrl,
+        autofocus: true,
+        maxLength: 140,
+        textCapitalization: TextCapitalization.sentences,
+        decoration: const InputDecoration(hintText: 'Ej: sin mayonesa, bien cocida…'),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _ctrl.text),
+          child: const Text('Guardar'),
         ),
       ],
     );
