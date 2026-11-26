@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
@@ -7,18 +8,31 @@ import 'providers/cantina_scope.dart';
 import 'screens/home_screen.dart';
 import 'theme.dart';
 
+/// En Android, el plugin de Google Services ya crea la app de Firebase por
+/// su cuenta con los datos de android/app/google-services.json. Desde Dart
+/// solo hay que "engancharse" a esa app con initializeApp() SIN opciones:
+/// si se le pasan opciones (las de firebase_options.dart), Firebase cree que
+/// es otra configuración y tira "[core/duplicate-app] A Firebase App named
+/// [DEFAULT] already exists". En las demás plataformas sí se usan las opciones.
+Future<void> _iniciarFirebase() async {
+  if (Firebase.apps.isNotEmpty) return;
+  try {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      await Firebase.initializeApp();
+    } else {
+      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    }
+  } on FirebaseException catch (e) {
+    // Si igual ya existía (por ejemplo, tras un reinicio en caliente), se usa esa.
+    if (e.code != 'duplicate-app') rethrow;
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    // En Android, el plugin de Google Services ya inicializa Firebase solo
-    // (lee google-services.json antes de que arranque Flutter). Si acá lo
-    // volvemos a inicializar sin chequear, choca contra esa inicialización
-    // nativa y tira "[core/duplicate-app] A Firebase App named [DEFAULT]
-    // already exists". Por eso solo lo hacemos si todavía no existe.
-    if (Firebase.apps.isEmpty) {
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-    }
+    await _iniciarFirebase();
     final provider = CantinaProvider();
     await provider.cargar(); // conecta con Firebase y resuelve la sesión actual
     runApp(MiCantinaApp(provider: provider));
